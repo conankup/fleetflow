@@ -36,9 +36,8 @@ switch ($action) {
 
         try {
             $stmt = $pdo->prepare("
-                SELECT u.*, t.name as title_name, d.name as dept_name, divi.name as div_name 
+                SELECT u.*, u.title as title_name, d.name as dept_name, divi.name as div_name 
                 FROM users u
-                LEFT JOIN titles t ON u.title_id = t.id
                 LEFT JOIN departments d ON u.department_id = d.id
                 LEFT JOIN divisions divi ON u.division_id = divi.id
                 WHERE u.username = ?
@@ -129,12 +128,10 @@ switch ($action) {
     // --- 1. ORGANIZATION MDM ENDPOINTS ---
     case 'get_org_data':
         try {
-            $titles = $pdo->query("SELECT * FROM titles ORDER BY name ASC")->fetchAll();
             $depts = $pdo->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll();
-            $divs = $pdo->query("SELECT * FROM divisions ORDER BY name ASC")->fetchAll();
+            $divs = $pdo->query("SELECT divisions.*, departments.name AS dept_name FROM divisions LEFT JOIN departments ON divisions.department_id = departments.id ORDER BY divisions.name ASC")->fetchAll();
             echo json_encode([
                 'status' => 'success',
-                'titles' => $titles,
                 'departments' => $depts,
                 'divisions' => $divs
             ], JSON_UNESCAPED_UNICODE);
@@ -151,15 +148,20 @@ switch ($action) {
         $type = isset($input_data['type']) ? trim($input_data['type']) : ''; // 'title', 'dept', 'div'
         $id = isset($input_data['id']) ? intval($input_data['id']) : 0;
         $name = isset($input_data['name']) ? trim($input_data['name']) : '';
+        $dept_id = isset($input_data['department_id']) ? intval($input_data['department_id']) : 0;
 
         if (empty($type) || empty($name)) {
             echo json_encode(['status' => 'error', 'message' => 'ข้อมูลไม่ครบถ้วน'], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
+        if ($type === 'div' && $dept_id <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'กรุณาเลือกส่วนงานต้นสังกัด'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
         $table = '';
-        if ($type === 'title') $table = 'titles';
-        elseif ($type === 'dept') $table = 'departments';
+        if ($type === 'dept') $table = 'departments';
         elseif ($type === 'div') $table = 'divisions';
 
         if (empty($table)) {
@@ -169,11 +171,21 @@ switch ($action) {
 
         try {
             if ($id > 0) {
-                $stmt = $pdo->prepare("UPDATE `$table` SET name = ? WHERE id = ?");
-                $stmt->execute([$name, $id]);
+                if ($type === 'div') {
+                    $stmt = $pdo->prepare("UPDATE `$table` SET name = ?, department_id = ? WHERE id = ?");
+                    $stmt->execute([$name, $dept_id, $id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE `$table` SET name = ? WHERE id = ?");
+                    $stmt->execute([$name, $id]);
+                }
             } else {
-                $stmt = $pdo->prepare("INSERT INTO `$table` (name) VALUES (?)");
-                $stmt->execute([$name]);
+                if ($type === 'div') {
+                    $stmt = $pdo->prepare("INSERT INTO `$table` (name, department_id) VALUES (?, ?)");
+                    $stmt->execute([$name, $dept_id]);
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO `$table` (name) VALUES (?)");
+                    $stmt->execute([$name]);
+                }
             }
             echo json_encode(['status' => 'success', 'message' => 'บันทึกข้อมูลสำเร็จ'], JSON_UNESCAPED_UNICODE);
         } catch (\PDOException $e) {
@@ -190,8 +202,7 @@ switch ($action) {
         $id = isset($input_data['id']) ? intval($input_data['id']) : 0;
 
         $table = '';
-        if ($type === 'title') $table = 'titles';
-        elseif ($type === 'dept') $table = 'departments';
+        if ($type === 'dept') $table = 'departments';
         elseif ($type === 'div') $table = 'divisions';
 
         if (empty($table) || $id <= 0) {
@@ -212,10 +223,9 @@ switch ($action) {
     case 'get_users':
         try {
             $users = $pdo->query("
-                SELECT u.id, u.username, u.fullname, u.role, u.title_id, u.department_id, u.division_id,
-                       t.name as title_name, d.name as dept_name, divi.name as div_name, u.created_at
+                SELECT u.id, u.username, u.fullname, u.role, u.title, u.department_id, u.division_id,
+                       u.title as title_name, d.name as dept_name, divi.name as div_name, u.created_at
                 FROM users u
-                LEFT JOIN titles t ON u.title_id = t.id
                 LEFT JOIN departments d ON u.department_id = d.id
                 LEFT JOIN divisions divi ON u.division_id = divi.id
                 ORDER BY u.id DESC
@@ -253,7 +263,7 @@ switch ($action) {
         $username = isset($input_data['username']) ? trim($input_data['username']) : '';
         $fullname = isset($input_data['fullname']) ? trim($input_data['fullname']) : '';
         $password = isset($input_data['password']) ? $input_data['password'] : '';
-        $title_id = isset($input_data['title_id']) ? intval($input_data['title_id']) : null;
+        $title = isset($input_data['title']) ? trim($input_data['title']) : '';
         $department_id = isset($input_data['department_id']) ? intval($input_data['department_id']) : null;
         $division_id = isset($input_data['division_id']) ? intval($input_data['division_id']) : null;
         $role = isset($input_data['role']) ? trim($input_data['role']) : 'staff';
@@ -271,11 +281,11 @@ switch ($action) {
                 // Update User
                 if (!empty($password)) {
                     $hash = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("UPDATE users SET username = ?, password_hash = ?, fullname = ?, title_id = ?, department_id = ?, division_id = ?, role = ? WHERE id = ?");
-                    $stmt->execute([$username, $hash, $fullname, $title_id, $department_id, $division_id, $role, $id]);
+                    $stmt = $pdo->prepare("UPDATE users SET username = ?, password_hash = ?, fullname = ?, title = ?, department_id = ?, division_id = ?, role = ? WHERE id = ?");
+                    $stmt->execute([$username, $hash, $fullname, $title, $department_id, $division_id, $role, $id]);
                 } else {
-                    $stmt = $pdo->prepare("UPDATE users SET username = ?, fullname = ?, title_id = ?, department_id = ?, division_id = ?, role = ? WHERE id = ?");
-                    $stmt->execute([$username, $fullname, $title_id, $department_id, $division_id, $role, $id]);
+                    $stmt = $pdo->prepare("UPDATE users SET username = ?, fullname = ?, title = ?, department_id = ?, division_id = ?, role = ? WHERE id = ?");
+                    $stmt->execute([$username, $fullname, $title, $department_id, $division_id, $role, $id]);
                 }
                 $user_id = $id;
             } else {
@@ -286,8 +296,8 @@ switch ($action) {
                     exit;
                 }
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, fullname, title_id, department_id, division_id, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$username, $hash, $fullname, $title_id, $department_id, $division_id, $role]);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, fullname, title, department_id, division_id, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$username, $hash, $fullname, $title, $department_id, $division_id, $role]);
                 $user_id = $pdo->lastInsertId();
             }
 

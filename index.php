@@ -122,6 +122,10 @@
                             <i class="fa-solid fa-circle-check"></i>
                             กำลังใช้งาน: FleetFlow
                         </span>
+                        <!-- Theme toggle button -->
+                        <button id="theme-toggle" class="btn btn-secondary btn-sm" title="สลับโหมดธีม" onclick="toggleTheme()">
+                            <i class="fa-solid fa-moon"></i>
+                        </button>
                     </div>
                 </header>
 

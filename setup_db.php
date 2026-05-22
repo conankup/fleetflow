@@ -19,11 +19,7 @@ try {
     
     // 3. Create Tables
     
-    // Titles Table
-    $pdo->exec("CREATE TABLE titles (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 
     // Departments Table
     $pdo->exec("CREATE TABLE departments (
@@ -34,7 +30,10 @@ try {
     // Divisions Table
     $pdo->exec("CREATE TABLE divisions (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE
+        department_id INT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+        UNIQUE KEY dept_div (department_id, name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     // Users Table
@@ -43,12 +42,11 @@ try {
         username VARCHAR(100) NOT NULL UNIQUE,
         password_hash VARCHAR(255) NOT NULL,
         fullname VARCHAR(255) NOT NULL,
-        title_id INT,
+        title VARCHAR(255),
         department_id INT,
         division_id INT,
         role VARCHAR(50) DEFAULT 'staff',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (title_id) REFERENCES titles(id) ON DELETE SET NULL,
         FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
         FOREIGN KEY (division_id) REFERENCES divisions(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
@@ -153,14 +151,7 @@ try {
 
     // 4. Insert Mock Data
     
-    // Titles
-    $titles = ['เจ้าหน้าที่ธุรการ', 'พนักงานขับรถ', 'ผู้อำนวยการส่วน', 'หัวหน้างานยานพาหนะ'];
-    $title_ids = [];
-    foreach ($titles as $t) {
-        $stmt = $pdo->prepare("INSERT INTO titles (name) VALUES (?)");
-        $stmt->execute([$t]);
-        $title_ids[$t] = $pdo->lastInsertId();
-    }
+
 
     // Departments
     $depts = ['ส่วนบริหารงานกลาง', 'ส่วนเทคโนโลยีสารสนเทศ', 'ส่วนยุทธศาสตร์และแผนงาน'];
@@ -172,12 +163,17 @@ try {
     }
 
     // Divisions
-    $divs = ['งานยานพาหนะ', 'งานธุรการและสารบรรณ', 'งานพัฒนาซอฟต์แวร์', 'งานการเงินและบัญชี'];
+    $divs = [
+        ['name' => 'งานยานพาหนะ', 'dept' => 'ส่วนบริหารงานกลาง'],
+        ['name' => 'งานธุรการและสารบรรณ', 'dept' => 'ส่วนบริหารงานกลาง'],
+        ['name' => 'งานพัฒนาซอฟต์แวร์', 'dept' => 'ส่วนเทคโนโลยีสารสนเทศ'],
+        ['name' => 'งานการเงินและบัญชี', 'dept' => 'ส่วนบริหารงานกลาง']
+    ];
     $div_ids = [];
     foreach ($divs as $dv) {
-        $stmt = $pdo->prepare("INSERT INTO divisions (name) VALUES (?)");
-        $stmt->execute([$dv]);
-        $div_ids[$dv] = $pdo->lastInsertId();
+        $stmt = $pdo->prepare("INSERT INTO divisions (department_id, name) VALUES (?, ?)");
+        $stmt->execute([$dept_ids[$dv['dept']], $dv['name']]);
+        $div_ids[$dv['name']] = $pdo->lastInsertId();
     }
 
     // Users
@@ -214,12 +210,12 @@ try {
     $user_ids = [];
     foreach ($users_data as $ud) {
         $hash = password_hash($ud['password'], PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, fullname, title_id, department_id, division_id, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, fullname, title, department_id, division_id, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
             $ud['username'],
             $hash,
             $ud['fullname'],
-            $title_ids[$ud['title']],
+            $ud['title'],
             $dept_ids[$ud['dept']],
             $div_ids[$ud['div']],
             $ud['role']
@@ -464,7 +460,7 @@ try {
         'status' => 'success',
         'message' => 'ติดตั้งโครงสร้างฐานข้อมูลและข้อมูลตัวอย่างสำเร็จเรียบร้อยแล้ว!',
         'details' => [
-            'tables_created' => ['titles', 'departments', 'divisions', 'users', 'system_access', 'vehicles', 'drivers', 'bookings', 'routine_templates', 'routine_schedules', 'maintenance_alerts'],
+            'tables_created' => ['departments', 'divisions', 'users', 'system_access', 'vehicles', 'drivers', 'bookings', 'routine_templates', 'routine_schedules', 'maintenance_alerts'],
             'users_created' => count($users_data),
             'vehicles_created' => count($vehicles_data),
             'drivers_created' => count($drivers_data),

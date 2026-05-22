@@ -4,10 +4,35 @@
 let currentUser = null;
 let currentView = 'dashboard';
 
+function updateThemeIcon() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const current = document.body.getAttribute('data-theme') || 'dark';
+    btn.innerHTML = `<i class="fa-solid ${current === 'dark' ? 'fa-moon' : 'fa-sun'}"></i>`;
+}
+
+// Call updateThemeIcon on load and after toggle
+function applySavedTheme() {
+    const saved = localStorage.getItem('theme');
+    const theme = saved === 'dark' ? 'dark' : 'light';
+    document.body.setAttribute('data-theme', theme);
+    updateThemeIcon();
+}
+
 // Run on page load
 document.addEventListener('DOMContentLoaded', () => {
+    applySavedTheme();
     checkSession();
 });
+
+// Toggle theme between dark and light and update icon
+function toggleTheme() {
+    const current = document.body.getAttribute('data-theme') || 'dark';
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon();
+}
 
 // Helper: Make API request using Fetch
 async function apiFetch(action, method = 'POST', body = null) {
@@ -701,9 +726,9 @@ async function renderOrgTabContent() {
             items.forEach(item => {
                 listHtml += `
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--border-color); background: rgba(255,255,255,0.01);">
-                        <span>${escapeHtml(item.name)}</span>
+                        <span>${escapeHtml(item.name)} ${type === 'div' && item.dept_name ? `<small class="text-muted">(${escapeHtml(item.dept_name)})</small>` : ''}</span>
                         <div style="display:flex; gap:8px;">
-                            <button class="btn btn-secondary btn-sm" style="padding:4px 8px;" onclick="editOrgItemModal('${type}', ${item.id}, '${escapeHtml(item.name)}')">
+                            <button class="btn btn-secondary btn-sm" style="padding:4px 8px;" onclick="editOrgItemModal('${type}', ${item.id}, '${escapeHtml(item.name)}', ${type === 'div' ? item.department_id : 'null'})">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <button class="btn btn-danger btn-sm" style="padding:4px 8px;" onclick="deleteOrgItem('${type}', ${item.id})">
@@ -724,6 +749,12 @@ async function renderOrgTabContent() {
                         ${listHtml || '<p class="text-secondary text-center">ไม่มีข้อมูล</p>'}
                     </div>
                     <form onsubmit="handleSaveOrgItem(event, '${type}', 0)">
+                        ${type === 'div' ? `
+                            <select class="form-control" style="margin-bottom:8px; padding:8px;" id="new-dept-div" required>
+                                <option value="" disabled selected>เลือกส่วนงานต้นสังกัด...</option>
+                                ${window.cachedDepts.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('')}
+                            </select>
+                        ` : ''}
                         <div style="display:flex; gap:8px;">
                             <input type="text" class="form-control" placeholder="เพิ่ม${label}ใหม่" required id="new-name-${type}">
                             <button type="submit" class="btn btn-primary" style="padding:10px 14px;"><i class="fa-solid fa-plus"></i></button>
@@ -734,8 +765,7 @@ async function renderOrgTabContent() {
         };
         
         contentDiv.innerHTML = `
-            <div class="panel-grid">
-                ${renderList('title', res.titles)}
+            <div class="panel-grid" style="grid-template-columns: 1fr 1fr;">
                 ${renderList('dept', res.departments)}
                 ${renderList('div', res.divisions)}
             </div>
@@ -743,15 +773,37 @@ async function renderOrgTabContent() {
     }
 }
 
+window.filterUserDivisions = function() {
+    const deptId = document.getElementById('user-dept').value;
+    const divSelect = document.getElementById('user-div');
+    const currentVal = divSelect.value;
+    
+    const divs = window.cachedDivs || [];
+    const filteredDivs = divs.filter(dv => dv.department_id == deptId);
+    
+    let opts = '<option value="">-- เลือกงาน --</option>';
+    filteredDivs.forEach(dv => {
+        opts += `<option value="${dv.id}" ${currentVal == dv.id ? 'selected' : ''}>${escapeHtml(dv.name)}</option>`;
+    });
+    divSelect.innerHTML = opts;
+    
+    if (!filteredDivs.find(dv => dv.id == currentVal)) {
+        divSelect.value = '';
+    }
+};
+
 window.editUserModal = function(user = null) {
     const isEdit = user !== null;
-    const titles = window.cachedTitles || [];
     const depts = window.cachedDepts || [];
     const divs = window.cachedDivs || [];
     
-    const titleOpts = titles.map(t => `<option value="${t.id}" ${user && user.title_id == t.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
     const deptOpts = depts.map(d => `<option value="${d.id}" ${user && user.department_id == d.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('');
-    const divOpts = divs.map(dv => `<option value="${dv.id}" ${user && user.division_id == dv.id ? 'selected' : ''}>${escapeHtml(dv.name)}</option>`).join('');
+    
+    let initialDivs = divs;
+    if (user && user.department_id) {
+        initialDivs = divs.filter(dv => dv.department_id == user.department_id);
+    }
+    const divOpts = initialDivs.map(dv => `<option value="${dv.id}" ${user && user.division_id == dv.id ? 'selected' : ''}>${escapeHtml(dv.name)}</option>`).join('');
     
     const hasFleetflow = user ? user.systems.includes('fleetflow') : true;
     const hasEdocument = user ? user.systems.includes('e-document') : false;
@@ -784,17 +836,14 @@ window.editUserModal = function(user = null) {
                 
                 <div class="form-group">
                     <label class="form-label" for="user-title">ตำแหน่ง</label>
-                    <select id="user-title" class="form-control" style="padding-left:14px;">
-                        <option value="">-- เลือกตำแหน่ง --</option>
-                        ${titleOpts}
-                    </select>
+                    <input type="text" id="user-title" class="form-control" placeholder="กรอกตำแหน่ง..." required value="${user ? escapeHtml(user.title || user.title_name || '') : ''}">
                 </div>
             </div>
             
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                 <div class="form-group">
                     <label class="form-label" for="user-dept">ส่วนงาน</label>
-                    <select id="user-dept" class="form-control" style="padding-left:14px;">
+                    <select id="user-dept" class="form-control" style="padding-left:14px;" onchange="filterUserDivisions()">
                         <option value="">-- เลือกส่วน --</option>
                         ${deptOpts}
                     </select>
@@ -848,7 +897,7 @@ window.handleSaveUser = async function(event, id) {
         username: document.getElementById('user-username').value.trim(),
         password: document.getElementById('user-password').value,
         role: document.getElementById('user-role').value,
-        title_id: document.getElementById('user-title').value || null,
+        title: document.getElementById('user-title').value.trim(),
         department_id: document.getElementById('user-dept').value || null,
         division_id: document.getElementById('user-div').value || null,
         systems: systems
@@ -876,17 +925,28 @@ window.deleteUser = async function(id) {
     }
 };
 
-window.handleSaveOrgItem = async function(event, type, id, inlineName = null) {
+window.handleSaveOrgItem = async function(event, type, id, inlineName = null, inlineDeptId = null) {
     if (event) event.preventDefault();
     
     const nameVal = inlineName || document.getElementById(`new-name-${type}`).value.trim();
     if (!nameVal) return;
     
-    const res = await apiFetch('save_org_item', 'POST', {
+    let deptIdVal = inlineDeptId;
+    if (!deptIdVal && type === 'div') {
+        const selectEl = document.getElementById(`new-dept-div`);
+        if (selectEl) deptIdVal = selectEl.value;
+    }
+    
+    const payload = {
         type: type,
         id: id,
         name: nameVal
-    });
+    };
+    if (type === 'div' && deptIdVal) {
+        payload.department_id = deptIdVal;
+    }
+    
+    const res = await apiFetch('save_org_item', 'POST', payload);
     
     if (res.status === 'success') {
         if (!inlineName) document.getElementById(`new-name-${type}`).value = '';
@@ -898,10 +958,25 @@ window.handleSaveOrgItem = async function(event, type, id, inlineName = null) {
     }
 };
 
-window.editOrgItemModal = function(type, id, currentName) {
+window.editOrgItemModal = function(type, id, currentName, currentDeptId = null) {
     let label = type === 'title' ? 'ตำแหน่ง' : (type === 'dept' ? 'ส่วน' : 'งาน');
+    
+    let extraField = '';
+    if (type === 'div') {
+        extraField = `
+            <div class="form-group">
+                <label class="form-label">สังกัดส่วน</label>
+                <select id="edit-org-dept-id" class="form-control" required>
+                    <option value="" disabled>เลือกส่วนงานต้นสังกัด...</option>
+                    ${window.cachedDepts.map(d => `<option value="${d.id}" ${d.id == currentDeptId ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }
+    
     const formHtml = `
-        <form onsubmit="handleSaveOrgItem(event, '${type}', ${id}, document.getElementById('edit-org-name').value.trim())">
+        <form onsubmit="handleSaveOrgItem(event, '${type}', ${id}, document.getElementById('edit-org-name').value.trim(), ${type === 'div' ? "document.getElementById('edit-org-dept-id').value" : "null"})">
+            ${extraField}
             <div class="form-group">
                 <label class="form-label">ชื่อ${label}</label>
                 <input type="text" id="edit-org-name" class="form-control" value="${escapeHtml(currentName)}" required>

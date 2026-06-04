@@ -48,7 +48,72 @@
                         เข้าสู่ระบบ
                         <i class="fa-solid fa-right-to-bracket"></i>
                     </button>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <a href="#" onclick="showRegisterForm(event)" class="text-link" style="color: var(--primary); font-size: 13.5px; font-weight: 600; text-decoration: none;">ยังไม่มีบัญชี? สมัครเข้าใช้งาน</a>
+                    </div>
                 </form>
+
+                <!-- Registration Form Container -->
+                <div id="register-form-container" style="display: none;">
+                    <h2 class="login-title" style="font-size: 20px; margin-top: 10px; margin-bottom: 20px; text-align: center;">สมัครเข้าใช้งานระบบ</h2>
+                    <form id="register-form" onsubmit="handleRegister(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="reg-username">ชื่อผู้ใช้งาน (Username) *</label>
+                            <div class="input-container">
+                                <input type="text" id="reg-username" class="form-control" placeholder="พิมพ์ชื่อผู้ใช้สำหรับเข้าระบบ" required autocomplete="username">
+                                <i class="fa-solid fa-user input-icon"></i>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="reg-fullname">ชื่อ-นามสกุล *</label>
+                            <div class="input-container">
+                                <input type="text" id="reg-fullname" class="form-control" placeholder="พิมพ์ชื่อจริงและนามสกุล" required>
+                                <i class="fa-solid fa-id-card input-icon"></i>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="reg-password">รหัสผ่าน *</label>
+                            <div class="input-container">
+                                <input type="password" id="reg-password" class="form-control" placeholder="รหัสผ่านเข้าใช้งาน" required autocomplete="new-password">
+                                <i class="fa-solid fa-lock input-icon"></i>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="reg-title">ตำแหน่งงาน</label>
+                            <div class="input-container">
+                                <input type="text" id="reg-title" class="form-control" placeholder="เช่น เจ้าหน้าที่บริหารงานทั่วไป">
+                                <i class="fa-solid fa-briefcase input-icon"></i>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="reg-department">ฝ่าย/แผนกหลัก</label>
+                            <select id="reg-department" class="form-control" style="padding-left: 14px;" onchange="handleRegDeptChange()">
+                                <option value="">เลือกฝ่าย/แผนก</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="reg-division">กอง/กลุ่มงาน</label>
+                            <select id="reg-division" class="form-control" style="padding-left: 14px;">
+                                <option value="">เลือกกอง/กลุ่มงาน</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block">
+                            ส่งข้อมูลสมัครใช้งาน
+                            <i class="fa-solid fa-user-plus"></i>
+                        </button>
+                        
+                        <div style="text-align: center; margin-top: 20px;">
+                            <a href="#" onclick="showLoginForm(event)" class="text-link" style="color: var(--text-secondary); font-size: 13.5px; font-weight: 600; text-decoration: none;">ย้อนกลับหน้าเข้าสู่ระบบ</a>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -91,6 +156,10 @@
                     <div class="nav-item" onclick="switchView('org', this)" id="nav-org">
                         <i class="fa-solid fa-sitemap"></i>
                         <span>ผังองค์กร & สิทธิ์ผู้ใช้</span>
+                    </div>
+                    <div class="nav-item" onclick="switchView('guide', this)" id="nav-guide">
+                        <i class="fa-solid fa-circle-question"></i>
+                        <span>คู่มือ & Workflow</span>
                     </div>
                 </nav>
                 

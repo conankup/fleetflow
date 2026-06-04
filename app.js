@@ -102,6 +102,109 @@ async function handleLogin(event) {
     }
 }
 
+// Global Org Data variable for registration filtering
+let registrationOrgData = { departments: [], divisions: [] };
+
+// Show registration form
+async function showRegisterForm(event) {
+    if (event) event.preventDefault();
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('register-form-container').style.display = 'block';
+    
+    // Clear registration fields
+    document.getElementById('reg-username').value = '';
+    document.getElementById('reg-fullname').value = '';
+    document.getElementById('reg-password').value = '';
+    document.getElementById('reg-title').value = '';
+    document.getElementById('reg-department').value = '';
+    document.getElementById('reg-division').value = '';
+    
+    // Load departments & divisions
+    const res = await apiFetch('get_public_org_data', 'GET');
+    if (res.status === 'success') {
+        registrationOrgData = res;
+        populateRegDepartments();
+    } else {
+        console.error("Failed to load organization data for registration:", res.message);
+    }
+}
+
+// Show login form
+function showLoginForm(event) {
+    if (event) event.preventDefault();
+    document.getElementById('register-form-container').style.display = 'none';
+    document.getElementById('login-form').style.display = 'block';
+    document.getElementById('login-alert').style.display = 'none';
+}
+
+// Populate departments dropdown in registration
+function populateRegDepartments() {
+    const deptSelect = document.getElementById('reg-department');
+    deptSelect.innerHTML = '<option value="">เลือกฝ่าย/แผนก</option>';
+    
+    registrationOrgData.departments.forEach(dept => {
+        const opt = document.createElement('option');
+        opt.value = dept.id;
+        opt.textContent = dept.name;
+        deptSelect.appendChild(opt);
+    });
+    
+    // Reset divisions dropdown
+    const divSelect = document.getElementById('reg-division');
+    divSelect.innerHTML = '<option value="">เลือกกอง/กลุ่มงาน</option>';
+}
+
+// Populate divisions dropdown based on selected department
+function handleRegDeptChange() {
+    const deptId = parseInt(document.getElementById('reg-department').value);
+    const divSelect = document.getElementById('reg-division');
+    divSelect.innerHTML = '<option value="">เลือกกอง/กลุ่มงาน</option>';
+    
+    if (isNaN(deptId)) return;
+    
+    const filteredDivs = registrationOrgData.divisions.filter(d => parseInt(d.department_id) === deptId);
+    filteredDivs.forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div.id;
+        opt.textContent = div.name;
+        divSelect.appendChild(opt);
+    });
+}
+
+// Handle registration form submit
+async function handleRegister(event) {
+    event.preventDefault();
+    const alertBanner = document.getElementById('login-alert');
+    const alertText = document.getElementById('login-alert-text');
+    alertBanner.style.display = 'none';
+    
+    const username = document.getElementById('reg-username').value.trim();
+    const fullname = document.getElementById('reg-fullname').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const title = document.getElementById('reg-title').value.trim();
+    const department_id = document.getElementById('reg-department').value;
+    const division_id = document.getElementById('reg-division').value;
+    
+    const res = await apiFetch('register', 'POST', {
+        username,
+        fullname,
+        password,
+        title,
+        department_id,
+        division_id
+    });
+    
+    if (res.status === 'success') {
+        alert(res.message);
+        showLoginForm();
+    } else {
+        alertText.textContent = res.message || 'การสมัครสมาชิกผิดพลาด';
+        alertBanner.style.display = 'flex';
+        // Scroll to top of login screen to see the alert banner
+        document.getElementById('login-screen').scrollTop = 0;
+    }
+}
+
 // Handle Logout
 async function handleLogout() {
     const res = await apiFetch('logout', 'GET');
@@ -138,7 +241,15 @@ function setupUserProfile() {
     
     // Set Profile Text
     document.getElementById('profile-name').textContent = currentUser.fullname;
-    document.getElementById('profile-dept').textContent = currentUser.title + ' / ' + currentUser.division;
+    
+    const deptParts = [];
+    if (currentUser.title) deptParts.push(currentUser.title);
+    if (currentUser.division) {
+        deptParts.push(currentUser.division);
+    } else if (currentUser.department) {
+        deptParts.push(currentUser.department);
+    }
+    document.getElementById('profile-dept').textContent = deptParts.join(' / ') || 'ผู้ใช้งานทั่วไป';
     
     // Avatar Letter
     const firstLetter = currentUser.fullname ? currentUser.fullname.trim().charAt(0) : 'U';
@@ -202,11 +313,501 @@ function switchView(viewName, element) {
             pageTitle.textContent = 'ผังโครงสร้างองค์กรและสิทธิ์เข้าใช้ระบบ';
             loadOrgView(mainContent);
             break;
+        case 'guide':
+            pageTitle.textContent = 'คู่มือการใช้งานและ Flow การทำงาน';
+            loadGuideView(mainContent);
+            break;
         default:
             pageTitle.textContent = 'หน้ากระดาษว่างเปล่า';
             mainContent.innerHTML = '<p class="text-secondary">กำลังปรับปรุงหน้านี้</p>';
     }
 }
+
+// Function to load the Interactive Guide View
+function loadGuideView(container) {
+    container.innerHTML = `
+        <style>
+            .guide-wrapper {
+                animation: fadeIn var(--transition-normal);
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+            }
+            .guide-tabs {
+                display: flex;
+                gap: 8px;
+                border-bottom: 1px solid var(--border-color);
+                padding-bottom: 12px;
+                flex-wrap: wrap;
+            }
+            .guide-tab-btn {
+                background: transparent;
+                border: none;
+                color: var(--text-secondary);
+                padding: 10px 18px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                border-radius: 8px;
+                transition: var(--transition-fast);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .guide-tab-btn:hover {
+                background: var(--nav-hover-bg);
+                color: var(--text-primary);
+            }
+            .guide-tab-btn.active {
+                background: var(--primary-glow);
+                color: var(--primary);
+            }
+            .guide-pane {
+                display: none;
+                animation: fadeIn var(--transition-normal);
+            }
+            .guide-pane.active {
+                display: block;
+            }
+            
+            /* Flowchart Styles */
+            .flow-container {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                position: relative;
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 10px 0;
+            }
+            .flow-step {
+                display: grid;
+                grid-template-columns: 80px 1fr;
+                gap: 24px;
+                position: relative;
+            }
+            .flow-step::before {
+                content: '';
+                position: absolute;
+                top: 50px;
+                left: 40px;
+                width: 2px;
+                height: calc(100% + 16px);
+                background: var(--border-color);
+                z-index: 1;
+            }
+            .flow-step:last-child::before {
+                display: none;
+            }
+            .flow-node {
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                z-index: 2;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                border: 2px solid;
+                background: var(--bg-card);
+                transition: var(--transition-normal);
+            }
+            .flow-step:hover .flow-node {
+                transform: scale(1.08);
+            }
+            .node-request { color: #3b82f6; border-color: #3b82f6; box-shadow: 0 0 15px rgba(59,130,246,0.15); }
+            .node-approve { color: #8b5cf6; border-color: #8b5cf6; box-shadow: 0 0 15px rgba(139,92,246,0.15); }
+            .node-travel { color: #10b981; border-color: #10b981; box-shadow: 0 0 15px rgba(16,185,129,0.15); }
+            .node-complete { color: #06b6d4; border-color: #06b6d4; box-shadow: 0 0 15px rgba(6,182,212,0.15); }
+            
+            .flow-card {
+                background: var(--bg-card);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+                transition: var(--transition-normal);
+            }
+            .flow-step:hover .flow-card {
+                border-color: var(--primary);
+                box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            }
+            .flow-title {
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--text-primary);
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .flow-actor {
+                font-size: 11px;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+            .actor-staff { background: rgba(59,130,246,0.1); color: #3b82f6; }
+            .actor-admin { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+            .actor-driver { background: rgba(16,185,129,0.1); color: #10b981; }
+            
+            /* Role Cards Grid */
+            .role-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 24px;
+            }
+            .role-card {
+                background: var(--bg-card);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                padding: 24px;
+                border-top: 5px solid;
+                transition: var(--transition-normal);
+            }
+            .role-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 12px 24px rgba(0,0,0,0.05);
+            }
+            .role-staff { border-top-color: #3b82f6; }
+            .role-driver { border-top-color: #10b981; }
+            .role-admin { border-top-color: #8b5cf6; }
+            
+            .role-header {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                color: var(--text-primary);
+            }
+            .role-list {
+                list-style: none;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .role-list li {
+                font-size: 13px;
+                color: var(--text-secondary);
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                line-height: 1.5;
+            }
+            .role-list li i {
+                margin-top: 4px;
+                font-size: 12px;
+            }
+            .role-staff i { color: #3b82f6; }
+            .role-driver i { color: #10b981; }
+            .role-admin i { color: #8b5cf6; }
+
+            /* Manual Details */
+            .manual-section {
+                margin-bottom: 32px;
+            }
+            .manual-title {
+                font-size: 18px;
+                font-weight: 700;
+                color: var(--text-primary);
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .manual-steps {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .manual-step-item {
+                background: rgba(255,255,255,0.01);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 16px;
+                display: flex;
+                gap: 16px;
+            }
+            .step-number {
+                width: 32px;
+                height: 32px;
+                background: var(--nav-hover-bg);
+                color: var(--text-primary);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+            .step-details h5 {
+                font-size: 14px;
+                font-weight: 700;
+                margin-bottom: 4px;
+                color: var(--text-primary);
+            }
+            .step-details p {
+                font-size: 13px;
+                color: var(--text-secondary);
+                line-height: 1.5;
+                margin: 0;
+            }
+        </style>
+
+        <div class="guide-wrapper">
+            <div class="guide-tabs">
+                <button class="guide-tab-btn active" onclick="switchGuideTab('flow', this)">
+                    <i class="fa-solid fa-sitemap"></i> แผนภาพ Workflow การทำงาน
+                </button>
+                <button class="guide-tab-btn" onclick="switchGuideTab('roles', this)">
+                    <i class="fa-solid fa-users"></i> คำแนะนำตามบทบาท (Roles)
+                </button>
+                <button class="guide-tab-btn" onclick="switchGuideTab('manual', this)">
+                    <i class="fa-solid fa-book-open"></i> คู่มือขั้นตอนการใช้งาน
+                </button>
+            </div>
+
+            <!-- Tab 1: Flowchart -->
+            <div id="pane-flow" class="guide-pane active">
+                <div class="glass-panel" style="padding: 24px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h3 style="margin-bottom: 8px;">วงจรชีวิตของรายการขอใช้รถ (Booking Lifecycle)</h3>
+                        <p class="text-secondary" style="font-size: 14px;">แผนภาพกระบวนการจองรถ จัดสรรคนขับ และอนุมัติเดินทางภายในระบบ FleetFlow</p>
+                    </div>
+
+                    <div class="flow-container">
+                        <!-- Step 1 -->
+                        <div class="flow-step">
+                            <div class="flow-node node-request">
+                                <i class="fa-solid fa-file-signature"></i>
+                            </div>
+                            <div class="flow-card">
+                                <div class="flow-title">
+                                    <span>ขั้นตอนที่ 1: สร้างรายการขอใช้ยานพาหนะ (Booking Request)</span>
+                                    <span class="flow-actor actor-staff">Staff / User</span>
+                                </div>
+                                <p class="text-secondary" style="font-size: 13px; line-height: 1.5; margin: 0;">
+                                    ผู้ใช้งานกรอกแบบฟอร์มขอใช้รถ ระบุผู้เดินทาง, วันเวลา, ปลายทาง และวัตถุประสงค์ในการขอใช้รถยนต์ โดยคำขอดังกล่าวจะมีสถานะเริ่มต้นเป็น <strong>"รออนุมัติ" (pending_admin)</strong> และยังไม่ระบุตัวรถยนต์หรือพนักงานขับรถ
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="flow-step">
+                            <div class="flow-node node-approve">
+                                <i class="fa-solid fa-user-check"></i>
+                            </div>
+                            <div class="flow-card">
+                                <div class="flow-title">
+                                    <span>ขั้นตอนที่ 2: อนุมัติและจัดสรรทรัพยากร (Approve & Allocate)</span>
+                                    <span class="flow-actor actor-admin">Admin</span>
+                                </div>
+                                <p class="text-secondary" style="font-size: 13px; line-height: 1.5; margin: 0;">
+                                    ผู้ควบคุมระบบตรวจสอบคำขอใช้รถและเช็คตารางว่างผ่านปฏิทินคิวงาน ทำการอนุมัติใบคำขอและเลือกจัดสรรยานพาหนะ (Vehicle) และพนักงานขับรถ (Driver) ที่ว่างตรงกับวันเวลานั้นๆ รายการจองจะเปลี่ยนเป็นสถานะ <strong>"อนุมัติแล้ว" (approved)</strong> ผู้ใช้งานสามารถดาวน์โหลดหรือสั่งพิมพ์เอกสารขอใช้รถอย่างเป็นทางการ (TH-Sarabun) ได้ทันที
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="flow-step">
+                            <div class="flow-node node-travel">
+                                <i class="fa-solid fa-road"></i>
+                            </div>
+                            <div class="flow-card">
+                                <div class="flow-title">
+                                    <span>ขั้นตอนที่ 3: เริ่มออกเดินทางและบันทึกทริป (Execute Trip)</span>
+                                    <span class="flow-actor actor-driver">Driver / Staff</span>
+                                </div>
+                                <p class="text-secondary" style="font-size: 13px; line-height: 1.5; margin: 0;">
+                                    เมื่อถึงเวลากำหนดเดินทาง พนักงานขับรถหรือผู้ขอใช้รถจะกดเปลี่ยนสถานะเดินทางเป็น <strong>"กำลังเดินทาง" (driving)</strong> และบันทึก <strong>"เลขไมล์เริ่มต้น" (Start Mileage)</strong> ของรถยนต์คันนั้นเข้าสู่ระบบเพื่อเริ่มตรวจสอบการใช้งานน้ำมันและยานพาหนะ
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="flow-step">
+                            <div class="flow-node node-complete">
+                                <i class="fa-solid fa-flag-checkered"></i>
+                            </div>
+                            <div class="flow-card">
+                                <div class="flow-title">
+                                    <span>ขั้นตอนที่ 4: เสร็จสิ้นการเดินทางและปิดทริป (Complete Trip)</span>
+                                    <span class="flow-actor actor-driver">Driver / Staff</span>
+                                </div>
+                                <p class="text-secondary" style="font-size: 13px; line-height: 1.5; margin: 0;">
+                                    เมื่อสิ้นสุดภารกิจเดินทางกลับถึงจุดหมาย พนักงานขับรถจะดำเนินการปิดงานโดยกรอก <strong>"เลขไมล์สิ้นสุด" (End Mileage)</strong> ของยานพาหนะเข้าสู่ระบบ เพื่อตรวจสอบระยะทางรวมที่ใช้งาน ระบบจะทำการเปลี่ยนสถานะรายการจองเป็น <strong>"ทริปเสร็จสิ้น" (completed)</strong> เพื่อเคลียร์สถานะรถยนต์และคนขับให้ว่างสำหรับคิวงานถัดไป
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: User Roles -->
+            <div id="pane-roles" class="guide-pane">
+                <div class="role-grid">
+                    <!-- Staff -->
+                    <div class="role-card role-staff">
+                        <div class="role-header">
+                            <i class="fa-solid fa-user-gear"></i>
+                            <span>ผู้ใช้งานทั่วไป (Staff)</span>
+                        </div>
+                        <ul class="role-list">
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>ยื่นจองรถใหม่:</strong> สามารถส่งแบบฟอร์มขอใช้รถ (Ad-hoc) ระบุผู้ใช้, ปลายทาง, และจุดประสงค์</div></li>
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>พิมพ์ใบยานพาหนะ:</strong> สั่งพิมพ์แบบฟอร์มขอใช้รถในรูปแบบฟอนต์ TH-Sarabun เมื่อได้รับการอนุมัติ</div></li>
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>ตรวจสอบคิวงาน:</strong> ดูปฏิทินงานรวมประจำวัน/เดือน เพื่อตรวจสอบวันเวลาใช้รถที่ว่างอยู่</div></li>
+                        </ul>
+                    </div>
+
+                    <!-- Driver -->
+                    <div class="role-card role-driver">
+                        <div class="role-header">
+                            <i class="fa-solid fa-user-tie"></i>
+                            <span>คนขับรถ (Driver)</span>
+                        </div>
+                        <ul class="role-list">
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>ตรวจสอบภารกิจ:</strong> ดูตารางคิวงานเดินทางประจำวันของตนเองเพื่อเตรียมความพร้อม</div></li>
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>บันทึกประวัติการเดินรถ:</strong> บันทึกเลขไมล์เริ่มต้นและสิ้นสุดของทริปที่ได้รับมอบหมาย</div></li>
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>ปรับปรุงสถานะทริป:</strong> อัปเดตสถานะการเดินรถ (Driving -> Arrived -> Completed) ในระบบ</div></li>
+                        </ul>
+                    </div>
+
+                    <!-- Admin -->
+                    <div class="role-card role-admin">
+                        <div class="role-header">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <span>ผู้ควบคุมระบบ (Admin)</span>
+                        </div>
+                        <ul class="role-list">
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>อนุมัติ & จัดสรรงาน:</strong> ตรวจสอบรายการขอใช้รถ, เลือกจับคู่รถยนต์และคนขับที่ว่างในตาราง</div></li>
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>สร้างตารางงานประจำ:</strong> ตั้งค่าแม่แบบงานประจำสัปดาห์ (Routine Templates) และสั่งสร้างตารางล่วงหน้าอัตโนมัติ</div></li>
+                            <li><i class="fa-solid fa-square-check"></i> <div><strong>จัดการข้อมูลกลาง:</strong> จัดการฐานข้อมูลยานพาหนะ, พนักงานขับรถ, โครงสร้างองค์กร และสิทธิ์ผู้ใช้งาน</div></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Detailed Manual -->
+            <div id="pane-manual" class="guide-pane">
+                <div class="glass-panel" style="padding: 24px;">
+                    
+                    <!-- Section 1 -->
+                    <div class="manual-section">
+                        <div class="manual-title">
+                            <i class="fa-solid fa-circle-play" style="color: #3b82f6;"></i>
+                            <span>วิธีการจองยานพาหนะเฉพาะกิจ (Ad-hoc Booking)</span>
+                        </div>
+                        <div class="manual-steps">
+                            <div class="manual-step-item">
+                                <div class="step-number">1</div>
+                                <div class="step-details">
+                                    <h5>เปิดหน้ารายการขอใช้รถ</h5>
+                                    <p>เข้าสู่ระบบและกดปุ่มเมนู <strong>"รายการขอใช้รถ"</strong> ในแถบด้านซ้าย เพื่อดูคิวงานเดิมหรือสร้างรายการใหม่</p>
+                                </div>
+                            </div>
+                            <div class="manual-step-item">
+                                <div class="step-number">2</div>
+                                <div class="step-details">
+                                    <h5>คลิก "เพิ่มรายการจองใหม่"</h5>
+                                    <p>กดปุ่ม <strong>"ยื่นคำขอจองใช้รถ"</strong> ระบบจะแสดงฟอร์มจองแบบ Pop-up ให้กรอกข้อมูลการเดินทาง</p>
+                                </div>
+                            </div>
+                            <div class="manual-step-item">
+                                <div class="step-number">3</div>
+                                <div class="step-details">
+                                    <h5>กรอกรายละเอียดการเดินทาง</h5>
+                                    <p>ระบุชื่อผู้ประสานงาน/แผนก, จุดหมายปลายทาง, จำนวนผู้โดยสาร, และความประสงค์ใช้น้ำมันหรือคนขับ จากนั้นกด <strong>"บันทึกคำขอ"</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2 -->
+                    <div class="manual-section">
+                        <div class="manual-title">
+                            <i class="fa-solid fa-calendar-check" style="color: #8b5cf6;"></i>
+                            <span>การจัดสรรคิวงานและอนุมัติ (สำหรับ Admin เท่านั้น)</span>
+                        </div>
+                        <div class="manual-steps">
+                            <div class="manual-step-item">
+                                <div class="step-number">1</div>
+                                <div class="step-details">
+                                    <h5>เปิดหน้าการขอใช้รถและเลือกรายการ</h5>
+                                    <p>เข้าไปที่เมนู <strong>"รายการขอใช้รถ"</strong> และค้นหารายการที่สถานะเป็น <strong>"รออนุมัติ"</strong> จากนั้นคลิกปุ่ม <strong>"อนุมัติ/จัดคิว"</strong></p>
+                                </div>
+                            </div>
+                            <div class="manual-step-item">
+                                <div class="step-number">2</div>
+                                <div class="step-details">
+                                    <h5>จัดรถยนต์และคนขับที่มีสถานะ "ว่าง"</h5>
+                                    <p>ระบบจะดึงยานพาหนะและคนขับรถที่ว่างในช่วงวันเวลานั้นมาให้เลือก จับคู่ทรัพยากรลงในแบบฟอร์มคำขอ</p>
+                                </div>
+                            </div>
+                            <div class="manual-step-item">
+                                <div class="step-number">3</div>
+                                <div class="step-details">
+                                    <h5>กดอนุมัติการจองและสั่งพิมพ์</h5>
+                                    <p>บันทึกข้อมูลเพื่อทำการอนุมัติ (สถานะจะเปลี่ยนเป็น <strong>"อนุมัติแล้ว"</strong>) และพนักงานสามารถคลิก <strong>"พิมพ์ใบยานพาหนะ"</strong> เพื่อออกเอกสารเป็นทางการ</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3 -->
+                    <div class="manual-section" style="margin-bottom: 0;">
+                        <div class="manual-title">
+                            <i class="fa-solid fa-repeat" style="color: #10b981;"></i>
+                            <span>การใช้งานตารางงานประจำล่วงหน้า (Routine Schedules)</span>
+                        </div>
+                        <div class="manual-steps">
+                            <div class="manual-step-item">
+                                <div class="step-number">1</div>
+                                <div class="step-details">
+                                    <h5>ตั้งค่าแม่แบบตารางงานประจำ (Routine Templates)</h5>
+                                    <p>ไปที่เมนู <strong>"ตั้งค่าตารางงานประจำ"</strong> บันทึกงานที่ทำซ้ำๆ ทุกวันหรือสัปดาห์ (เช่น ทริปรับส่งเอกสารด่วนทุกวันจันทร์) ระบุประเภทรถที่ต้องการ</p>
+                                </div>
+                            </div>
+                            <div class="manual-step-item">
+                                <div class="step-number">2</div>
+                                <div class="step-details">
+                                    <h5>ใช้ระบบสร้างคิวล่วงหน้ารายสัปดาห์ (Weekly Schedule Generator)</h5>
+                                    <p>ที่ด้านขวาของหน้าจอเลือกปีและสัปดาห์ที่ต้องการจัดสรรคิวงานล่วงหน้า จากนั้นกดปุ่ม <strong>"เริ่มสร้างตารางงานประจำสัปดาห์นี้"</strong></p>
+                                </div>
+                            </div>
+                            <div class="manual-step-item">
+                                <div class="step-number">3</div>
+                                <div class="step-details">
+                                    <h5>ตรวจเช็คคิวงานประจำบนปฏิทิน</h5>
+                                    <p>ระบบจะนำแม่แบบทั้งหมดมาคำนวณและสร้างเป็นใบจองรถอัตโนมัติ พร้อมตรวจเช็ครถ/คนขับที่เหมาะสมและลงบันทึกในตารางทันที</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Handler to switch tabs inside the interactive Guide view
+window.switchGuideTab = function(tabId, btn) {
+    const panes = document.querySelectorAll('.guide-pane');
+    panes.forEach(pane => pane.classList.remove('active'));
+    
+    const btns = document.querySelectorAll('.guide-tab-btn');
+    btns.forEach(b => b.classList.remove('active'));
+    
+    document.getElementById(`pane-${tabId}`).classList.add('active');
+    btn.classList.add('active');
+}
+
 
 // --- DUMMY PLACEHOLDERS FOR DYNAMIC VIEWS ---
 // We will replace these functions as we code each feature.

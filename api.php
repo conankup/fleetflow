@@ -15,8 +15,8 @@ if (strpos($content_type, 'application/json') !== false) {
 
 $action = isset($_GET['action']) ? $_GET['action'] : (isset($input_data['action']) ? $input_data['action'] : '');
 
-// Security Gate: Ensure session is active for all actions except login and check_session
-if (!in_array($action, ['login', 'check_session'])) {
+// Security Gate: Ensure session is active for all actions except login, check_session, register, and get_public_org_data
+if (!in_array($action, ['login', 'check_session', 'register', 'get_public_org_data'])) {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
         echo json_encode(['status' => 'error', 'message' => 'สิทธิ์ไม่ถูกต้อง: กรุณาเข้าสู่ระบบก่อนทำการทำรายการ'], JSON_UNESCAPED_UNICODE);
@@ -116,6 +116,63 @@ switch ($action) {
                 'status' => 'success',
                 'logged_in' => false
             ], JSON_UNESCAPED_UNICODE);
+        }
+        break;
+
+    case 'get_public_org_data':
+        try {
+            $depts = $pdo->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll();
+            $divs = $pdo->query("SELECT divisions.*, departments.name AS dept_name FROM divisions LEFT JOIN departments ON divisions.department_id = departments.id ORDER BY divisions.name ASC")->fetchAll();
+            echo json_encode([
+                'status' => 'success',
+                'departments' => $depts,
+                'divisions' => $divs
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (\PDOException $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        break;
+
+    case 'register':
+        $username = isset($input_data['username']) ? trim($input_data['username']) : '';
+        $fullname = isset($input_data['fullname']) ? trim($input_data['fullname']) : '';
+        $password = isset($input_data['password']) ? $input_data['password'] : '';
+        $title = isset($input_data['title']) ? trim($input_data['title']) : '';
+        $department_id = isset($input_data['department_id']) && $input_data['department_id'] !== '' && intval($input_data['department_id']) > 0 ? intval($input_data['department_id']) : null;
+        $division_id = isset($input_data['division_id']) && $input_data['division_id'] !== '' && intval($input_data['division_id']) > 0 ? intval($input_data['division_id']) : null;
+        $role = 'staff'; // Default role for self-registration
+
+        if (empty($username) || empty($fullname) || empty($password)) {
+            echo json_encode(['status' => 'error', 'message' => 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อผู้ใช้, ชื่อ-นามสกุล, และรหัสผ่าน) ให้ครบถ้วน'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // Check if username already exists
+            $stmt_check = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt_check->execute([$username]);
+            if ($stmt_check->fetch()) {
+                echo json_encode(['status' => 'error', 'message' => 'ชื่อผู้ใช้งานนี้มีอยู่ในระบบแล้ว'], JSON_UNESCAPED_UNICODE);
+                $pdo->rollBack();
+                exit;
+            }
+
+            $hash = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, fullname, title, department_id, division_id, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$username, $hash, $fullname, $title, $department_id, $division_id, $role]);
+            $user_id = $pdo->lastInsertId();
+
+            // Grant fleetflow access
+            $stmt_ins = $pdo->prepare("INSERT INTO system_access (user_id, system_name, is_allowed) VALUES (?, 'fleetflow', 1)");
+            $stmt_ins->execute([$user_id]);
+
+            $pdo->commit();
+            echo json_encode(['status' => 'success', 'message' => 'สมัครเข้าใช้งานสำเร็จแล้ว ท่านสามารถเข้าสู่ระบบได้ทันที'], JSON_UNESCAPED_UNICODE);
+        } catch (\PDOException $e) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'เกิดข้อผิดพลาดในการลงทะเบียน: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
         break;
 

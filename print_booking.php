@@ -17,6 +17,8 @@ try {
                u.title as creator_title,
                d_dept.name as creator_dept,
                d_div.name as creator_div,
+               u_ctrl.fullname as controller_fullname,
+               u_bak.fullname as backup_controller_fullname,
                drv.name as driver_name,
                drv.phone as driver_phone,
                drv.license_number as driver_license,
@@ -28,6 +30,8 @@ try {
         LEFT JOIN users u ON b.created_by = u.id
         LEFT JOIN departments d_dept ON u.department_id = d_dept.id
         LEFT JOIN divisions d_div ON u.division_id = d_div.id
+        LEFT JOIN users u_ctrl ON b.controller_id = u_ctrl.id
+        LEFT JOIN users u_bak ON b.backup_controller_id = u_bak.id
         LEFT JOIN drivers drv ON b.driver_id = drv.id
         LEFT JOIN vehicles v ON b.vehicle_id = v.id
         WHERE b.id = ?
@@ -59,6 +63,34 @@ function formatThaiDateTime($datetime_str) {
     $time = date('H:i', $timestamp);
     
     return "$day $month $year เวลา $time น.";
+}
+
+function getThaiDateParts($datetime_str) {
+    $thai_months = [
+        1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม', 4 => 'เมษายน',
+        5 => 'พฤษภาคม', 6 => 'มิถุนายน', 7 => 'กรกฎาคม', 8 => 'สิงหาคม',
+        9 => 'กันยายน', 10 => 'ตุลาคม', 11 => 'พฤศจิกายน', 12 => 'ธันวาคม'
+    ];
+    $thai_days = [
+        0 => 'อาทิตย์', 1 => 'จันทร์', 2 => 'อังคาร', 3 => 'พุธ',
+        4 => 'พฤหัสบดี', 5 => 'ศุกร์', 6 => 'เสาร์'
+    ];
+
+    if (empty($datetime_str)) {
+        return ['day' => '-', 'month' => '-', 'year' => '-', 'time' => '-', 'day_name' => '-'];
+    }
+    $timestamp = strtotime($datetime_str);
+    if (!$timestamp) {
+        return ['day' => '-', 'month' => '-', 'year' => '-', 'time' => '-', 'day_name' => '-'];
+    }
+
+    return [
+        'day'      => date('j', $timestamp),
+        'month'    => $thai_months[intval(date('n', $timestamp))],
+        'year'     => intval(date('Y', $timestamp)) + 543,
+        'time'     => date('H:i', $timestamp),
+        'day_name' => $thai_days[intval(date('w', $timestamp))],
+    ];
 }
 
 function formatThaiDateOnly($date_str) {
@@ -255,8 +287,8 @@ function formatThaiDateOnly($date_str) {
         <div style="font-size: 15.5px; line-height: 2.1; text-align: justify;">
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ข้าพเจ้า <span class="dotted-fill-inline" style="min-width: 6.5cm;"><?= htmlspecialchars($booking['creator_fullname']) ?></span> 
             ตำแหน่ง <span class="dotted-fill-inline" style="min-width: 5.5cm;"><?= htmlspecialchars($booking['creator_title'] ?: '-') ?></span> <br>
-            ส่วน <span class="dotted-fill-inline" style="min-width: 5.5cm;"><?= htmlspecialchars($booking['creator_dept_name'] ?: '-') ?></span> 
-            งาน <span class="dotted-fill-inline" style="min-width: 6.5cm;"><?= htmlspecialchars($booking['creator_div_name'] ?: '-') ?></span> 
+            ส่วน <span class="dotted-fill-inline" style="min-width: 5.5cm;"><?= htmlspecialchars($booking['creator_dept'] ?: '-') ?></span> 
+            งาน <span class="dotted-fill-inline" style="min-width: 6.5cm;"><?= htmlspecialchars($booking['creator_div'] ?: '-') ?></span> 
             ขออนุญาตใช้รถยนต์ไปติดต่อราชการที่ <span class="dotted-fill-inline" style="min-width: 12.8cm; text-align: left; text-indent: 6px;"><?= htmlspecialchars($booking['destination']) ?></span> <br>
             เรื่อง <span class="dotted-fill-inline" style="min-width: 16.5cm; text-align: left; text-indent: 6px;"><?= htmlspecialchars($booking['subject'] ?: '-') ?></span> <br>
             

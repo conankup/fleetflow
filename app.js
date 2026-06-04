@@ -812,15 +812,539 @@ window.switchGuideTab = function(tabId, btn) {
 // --- DUMMY PLACEHOLDERS FOR DYNAMIC VIEWS ---
 // We will replace these functions as we code each feature.
 function loadDashboardView(container) {
+    const userName = currentUser ? currentUser.fullname : 'ผู้ใช้งาน';
+    const userRole = currentUser ? currentUser.role : 'staff';
+    const thaiMonthsShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const now = new Date();
+    const thaiNow = `${now.getDate()} ${thaiMonthsShort[now.getMonth()]} ${now.getFullYear()+543}`;
+
     container.innerHTML = `
-        <div class="glass-panel" style="padding: 24px; animation: fadeIn var(--transition-normal);">
-            <h3>ยินดีต้อนรับสู่ FleetFlow</h3>
-            <p style="color: var(--text-secondary); margin-top: 10px;">
-                ระบบได้รับการติดตั้งเรียบร้อยแล้ว ท่านสามารถเลือกเมนูด้านซ้ายเพื่อเริ่มตั้งค่าข้อมูลและใช้งานระบบ
-            </p>
+    <style>
+        .dash-grid { display: grid; gap: 16px; }
+        .kpi-row { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+        .chart-row-2 { grid-template-columns: 2fr 1fr; }
+        .chart-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+        @media(max-width:1100px){ .chart-row-2,.chart-row-3{ grid-template-columns:1fr; } }
+
+        .dash-banner {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 16px; padding: 22px 26px;
+            color: #fff; display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px; position: relative; overflow: hidden;
+        }
+        .dash-banner::after {
+            content: '🚗'; position: absolute; right: 24px; top: 50%;
+            transform: translateY(-50%); font-size: 64px; opacity: 0.12; pointer-events: none;
+        }
+        .dash-banner-title { font-size: 20px; font-weight: 800; font-family: var(--font-heading); margin-bottom: 3px; }
+        .dash-banner-sub { font-size: 13px; opacity: 0.85; }
+        .dash-banner-date { font-size: 12px; opacity: 0.7; margin-top: 5px; }
+        .dash-banner-actions { display: flex; gap: 10px; z-index:1; }
+        .banner-pill {
+            padding: 8px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+            cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+            transition: var(--transition-fast);
+        }
+        .banner-pill-white { background: #fff; color: var(--primary); border: none; }
+        .banner-pill-white:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
+        .banner-pill-outline { background: rgba(255,255,255,0.15); color: #fff; border: 1.5px solid rgba(255,255,255,0.4); }
+        .banner-pill-outline:hover { background: rgba(255,255,255,0.28); }
+
+        .kpi-card-d {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 18px 16px; position: relative; overflow: hidden;
+            transition: var(--transition-normal); cursor: default;
+        }
+        .kpi-card-d::before {
+            content: ''; position: absolute; top:0; left:0; right:0; height:3px; border-radius: 14px 14px 0 0;
+        }
+        .kpi-card-d:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+        .kpi-card-d.c-primary::before { background: linear-gradient(90deg, var(--primary), var(--primary-light)); }
+        .kpi-card-d.c-success::before { background: linear-gradient(90deg, var(--success), #4ade80); }
+        .kpi-card-d.c-warning::before { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+        .kpi-card-d.c-danger::before  { background: linear-gradient(90deg, var(--danger), #f87171); }
+        .kpi-card-d.c-info::before    { background: linear-gradient(90deg, var(--info), #38bdf8); }
+        .kpi-card-d.c-teal::before    { background: linear-gradient(90deg, #14b8a6, #5eead4); }
+        .kpi-card-d.c-purple::before  { background: linear-gradient(90deg, #8b5cf6, #c084fc); }
+        .kpi-card-d.c-orange::before  { background: linear-gradient(90deg, #f97316, #fb923c); }
+        .kpi-icon-d {
+            width: 38px; height: 38px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; margin-bottom: 10px;
+        }
+        .kpi-card-d.c-primary .kpi-icon-d { background: rgba(120,80,240,0.12); }
+        .kpi-card-d.c-success .kpi-icon-d { background: rgba(40,180,120,0.12); }
+        .kpi-card-d.c-warning .kpi-icon-d { background: rgba(230,170,40,0.12); }
+        .kpi-card-d.c-danger  .kpi-icon-d { background: rgba(220,60,80,0.12); }
+        .kpi-card-d.c-info    .kpi-icon-d { background: rgba(40,160,220,0.12); }
+        .kpi-card-d.c-teal    .kpi-icon-d { background: rgba(20,184,166,0.12); }
+        .kpi-card-d.c-purple  .kpi-icon-d { background: rgba(139,92,246,0.12); }
+        .kpi-card-d.c-orange  .kpi-icon-d { background: rgba(249,115,22,0.12); }
+        .kpi-val-d { font-size: 28px; font-weight: 800; font-family: var(--font-heading); line-height:1; margin-bottom: 3px; }
+        .kpi-card-d.c-primary .kpi-val-d { color: var(--primary); }
+        .kpi-card-d.c-success .kpi-val-d { color: var(--success); }
+        .kpi-card-d.c-warning .kpi-val-d { color: var(--warning); }
+        .kpi-card-d.c-danger  .kpi-val-d { color: var(--danger); }
+        .kpi-card-d.c-info    .kpi-val-d { color: var(--info); }
+        .kpi-card-d.c-teal    .kpi-val-d { color: #14b8a6; }
+        .kpi-card-d.c-purple  .kpi-val-d { color: #8b5cf6; }
+        .kpi-card-d.c-orange  .kpi-val-d { color: #f97316; }
+        .kpi-lbl-d { font-size: 12.5px; color: var(--text-secondary); font-weight: 500; }
+        .kpi-sub-d { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        .chart-card-d {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 20px 20px 16px;
+        }
+        .chart-card-d h4 {
+            font-size: 13.5px; font-weight: 700; margin-bottom: 14px;
+            color: var(--text-primary); display: flex; align-items: center; gap: 7px;
+            font-family: var(--font-heading);
+        }
+
+        .dash-table-wrap {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 14px; overflow: hidden;
+        }
+        .dash-table-head {
+            padding: 16px 20px; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .dash-table-head h4 { font-size: 13.5px; font-weight:700; font-family:var(--font-heading); }
+        .dash-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .dash-tbl th {
+            background: var(--bg-input); padding: 9px 14px;
+            font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+            text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap;
+        }
+        .dash-tbl td { padding: 11px 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        .dash-tbl tr:last-child td { border-bottom: none; }
+        .dash-tbl tr:hover td { background: var(--bg-card-hover); }
+
+        .badge-d {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+        }
+        .bd-ok  { background: rgba(40,180,120,0.12); color: #16a34a; }
+        .bd-ap  { background: rgba(40,160,220,0.12); color: #0284c7; }
+        .bd-wt  { background: rgba(230,170,40,0.12);  color: #d97706; }
+        .bd-cx  { background: rgba(220,60,80,0.12);   color: #dc2626; }
+        .bd-dy  { background: rgba(20,184,166,0.10);  color: #0f766e; }
+        .bd-pv  { background: rgba(249,115,22,0.10);  color: #c2410c; }
+
+        .section-sep { display: flex; align-items: center; gap: 10px; margin: 20px 0 14px; }
+        .section-sep-icon { width: 28px; height: 28px; background: linear-gradient(135deg,var(--primary),var(--secondary)); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        .section-sep h3 { font-family: var(--font-heading); font-size: 14.5px; font-weight: 700; }
+        .section-sep-line { flex: 1; height: 1px; background: linear-gradient(to right, var(--border-color), transparent); }
+
+        .util-bar-row { padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+        .util-bar-row:last-child { border-bottom: none; }
+        .util-bar-top { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12.5px; }
+        .util-bar-bg { background: var(--bg-input); border-radius: 20px; height: 7px; overflow: hidden; }
+        .util-bar-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--primary), var(--secondary)); }
+        .util-bar-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+        .dest-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+        .dest-row:last-child { border-bottom: none; }
+        .dest-rank { width: 22px; height: 22px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+        .dest-rank.r1 { background: rgba(234,179,8,0.15); color: #a16207; }
+        .dest-rank.r2 { background: rgba(148,163,184,0.15); color: #475569; }
+        .dest-rank.r3 { background: rgba(180,120,60,0.15); color: #92400e; }
+        .dest-name { font-size: 12.5px; flex:1; }
+        .dest-cnt { font-family: var(--font-heading); font-weight: 700; font-size: 14px; color: var(--primary); }
+
+        .dept-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+        .dept-row:last-child { border-bottom: none; }
+        .dept-name { font-size: 12.5px; flex:1; font-weight: 500; }
+        .dept-cnt { font-family: var(--font-heading); font-weight: 700; font-size: 14px; color: var(--primary); min-width: 28px; text-align: right; }
+        .dept-bar-bg { flex:2; background: var(--bg-input); border-radius: 20px; height: 6px; overflow: hidden; }
+        .dept-bar-fill { height: 100%; border-radius: 20px; }
+
+        .legend-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+        .legend-item-d { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-secondary); }
+        .legend-dot-d { width: 9px; height: 9px; border-radius: 50%; }
+
+        .dash-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px; color: var(--text-muted); font-size: 14px; }
+        .spin { animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <div id="dash-root">
+        <!-- Greeting Banner -->
+        <div class="dash-banner">
+            <div>
+                <div class="dash-banner-title">สวัสดี, ${escapeHtml(userName)} 👋</div>
+                <div class="dash-banner-sub">ยินดีต้อนรับสู่ภาพรวมระบบบริหารจัดการยานพาหนะ</div>
+                <div class="dash-banner-date">📅 ${thaiNow} · กำลังโหลดข้อมูล...</div>
+            </div>
+            <div class="dash-banner-actions">
+                <button class="banner-pill banner-pill-white" onclick="switchView('bookings', document.getElementById('nav-bookings'))">
+                    📋 จองรถยนต์
+                </button>
+                ${userRole === 'admin' ? '<button class="banner-pill banner-pill-outline" onclick="switchView(\'org\', document.getElementById(\'nav-org\'))">⚙️ จัดการระบบ</button>' : ''}
+            </div>
         </div>
+
+        <!-- KPI Row -->
+        <div class="section-sep">
+            <div class="section-sep-icon">📊</div>
+            <h3>สถิติภาพรวม</h3>
+            <div class="section-sep-line"></div>
+        </div>
+        <div class="dash-grid kpi-row" id="dash-kpi-row">
+            <div class="dash-loading"><span class="spin">⟳</span> กำลังโหลดข้อมูล...</div>
+        </div>
+
+        <!-- Trend + Status -->
+        <div class="section-sep" style="margin-top:24px;">
+            <div class="section-sep-icon">📈</div>
+            <h3>แนวโน้มการใช้รถ</h3>
+            <div class="section-sep-line"></div>
+        </div>
+        <div class="dash-grid chart-row-2">
+            <div class="chart-card-d">
+                <h4>📊 แนวโน้มการจองรายเดือน (6 เดือนล่าสุด)</h4>
+                <div style="position:relative;height:240px"><canvas id="d-trend-chart"></canvas></div>
+            </div>
+            <div class="chart-card-d">
+                <h4>🥧 สัดส่วนสถานะการจอง</h4>
+                <div style="position:relative;height:200px"><canvas id="d-status-donut"></canvas></div>
+                <div class="legend-row" id="d-status-legend"></div>
+            </div>
+        </div>
+
+        <!-- Trip Type + Dept + Destinations -->
+        <div class="section-sep" style="margin-top:4px;">
+            <div class="section-sep-icon">🗺️</div>
+            <h3>การวิเคราะห์เชิงลึก</h3>
+            <div class="section-sep-line"></div>
+        </div>
+        <div class="dash-grid chart-row-3">
+            <div class="chart-card-d">
+                <h4>🗺️ ประเภทการเดินทาง</h4>
+                <div style="position:relative;height:180px"><canvas id="d-trip-donut"></canvas></div>
+                <div class="legend-row" id="d-trip-legend"></div>
+            </div>
+            <div class="chart-card-d">
+                <h4>🏢 การใช้รถแยกตามส่วนงาน</h4>
+                <div id="d-dept-list" style="margin-top:6px;"><div class="dash-loading"><span class="spin">⟳</span></div></div>
+            </div>
+            <div class="chart-card-d">
+                <h4>📍 ปลายทางยอดนิยม</h4>
+                <div id="d-dest-list" style="margin-top:6px;"><div class="dash-loading"><span class="spin">⟳</span></div></div>
+            </div>
+        </div>
+
+        <!-- Vehicle utilization -->
+        <div class="section-sep" style="margin-top:4px;">
+            <div class="section-sep-icon">🚙</div>
+            <h3>การใช้งานยานพาหนะ</h3>
+            <div class="section-sep-line"></div>
+        </div>
+        <div class="dash-grid chart-row-2">
+            <div class="chart-card-d">
+                <h4>📊 จำนวนเที่ยวต่อคัน</h4>
+                <div style="position:relative;height:220px"><canvas id="d-veh-bar"></canvas></div>
+            </div>
+            <div class="chart-card-d">
+                <h4>🛣️ ระยะทางสะสมแต่ละคัน</h4>
+                <div id="d-veh-util-list" style="margin-top:6px;"><div class="dash-loading"><span class="spin">⟳</span></div></div>
+            </div>
+        </div>
+
+        <!-- Recent bookings table -->
+        <div class="section-sep" style="margin-top:4px;">
+            <div class="section-sep-icon">🕐</div>
+            <h3>รายการจองล่าสุด</h3>
+            <div class="section-sep-line"></div>
+        </div>
+        <div class="dash-table-wrap">
+            <div class="dash-table-head">
+                <h4>📋 รายการล่าสุด 8 รายการ</h4>
+                <button class="btn btn-secondary btn-sm" onclick="switchView('bookings', document.getElementById('nav-bookings'))">ดูทั้งหมด →</button>
+            </div>
+            <div style="overflow-x:auto">
+                <table class="dash-tbl" id="d-recent-table">
+                    <thead><tr>
+                        <th>#</th><th>ผู้ขอ/ผู้จอง</th><th>ปลายทาง</th>
+                        <th>ประเภท</th><th>วันที่เดินทาง</th>
+                        <th>ยานพาหนะ</th><th>พนักงานขับรถ</th><th>สถานะ</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody id="d-recent-tbody">
+                        <tr><td colspan="9" class="dash-loading"><span class="spin">⟳</span> กำลังโหลด...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
     `;
+
+    // Load Chart.js dynamically then render everything
+    _dashLoadChartJs().then(() => _dashLoadAllData());
 }
+
+function _dashLoadChartJs() {
+    if (window.Chart) return Promise.resolve();
+    return new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';
+        s.onload = resolve;
+        document.head.appendChild(s);
+    });
+}
+
+async function _dashLoadAllData() {
+    const thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+    // Fetch from existing API endpoints in parallel
+    const [resBookings, resVehicles, resDrivers] = await Promise.all([
+        apiFetch('get_bookings', 'GET'),
+        apiFetch('get_vehicles', 'GET'),
+        apiFetch('get_drivers',  'GET'),
+    ]);
+
+    const bookings = (resBookings.status === 'success' ? resBookings.bookings : []) || [];
+    const vehicles = (resVehicles.status === 'success' ? resVehicles.vehicles : []) || [];
+    const drivers  = (resDrivers.status  === 'success' ? resDrivers.drivers  : []) || [];
+
+    // ── 1. Compute KPIs ──────────────────────────────────────
+    const total     = bookings.length;
+    const completed = bookings.filter(b => b.status === 'completed').length;
+    const approved  = bookings.filter(b => b.status === 'approved').length;
+    const pending   = bookings.filter(b => b.status === 'pending_admin').length;
+    const cancelled = bookings.filter(b => b.status === 'cancelled').length;
+    const dailyT    = bookings.filter(b => b.trip_type === 'daily').length;
+    const provinceT = bookings.filter(b => b.trip_type === 'province').length;
+
+    const availVeh   = vehicles.filter(v => v.status === 'available').length;
+    const activeDrivers = drivers.filter(d => d.status === 'active').length;
+
+    let kmTotal = 0;
+    bookings.forEach(b => {
+        if (b.start_mileage && b.end_mileage) kmTotal += (parseInt(b.end_mileage) - parseInt(b.start_mileage));
+    });
+
+    // KPI cards render
+    const kpiEl = document.getElementById('dash-kpi-row');
+    if (kpiEl) {
+        const cards = [
+            { cls:'c-primary', icon:'📋', val: total,    lbl:'รายการทั้งหมด', sub:'รวมทุกสถานะ' },
+            { cls:'c-success', icon:'✅', val: completed, lbl:'เสร็จสิ้น',     sub: total > 0 ? Math.round(completed/total*100)+'% ของทั้งหมด' : '-' },
+            { cls:'c-info',    icon:'✔️', val: approved,  lbl:'อนุมัติแล้ว',   sub:'กำลังดำเนินการ' },
+            { cls:'c-warning', icon:'⏳', val: pending,   lbl:'รออนุมัติ',     sub:'รอการพิจารณา' },
+            { cls:'c-danger',  icon:'❌', val: cancelled, lbl:'ยกเลิก',        sub:'ไม่ดำเนินการ' },
+            { cls:'c-teal',    icon:'🚗', val: availVeh,  lbl:'รถว่าง',        sub:`จาก ${vehicles.length} คัน` },
+            { cls:'c-purple',  icon:'👨‍✈️', val: activeDrivers, lbl:'พนักงานขับรถ', sub:'พร้อมปฏิบัติงาน' },
+            { cls:'c-orange',  icon:'🛣️', val: kmTotal.toLocaleString(), lbl:'ระยะทางรวม (กม.)', sub:'สะสมทั้งหมด' },
+        ];
+        kpiEl.innerHTML = cards.map(c => `
+            <div class="kpi-card-d ${c.cls}">
+                <div class="kpi-icon-d">${c.icon}</div>
+                <div class="kpi-val-d">${c.val}</div>
+                <div class="kpi-lbl-d">${c.lbl}</div>
+                <div class="kpi-sub-d">${c.sub}</div>
+            </div>`).join('');
+    }
+
+    // ── 2. Monthly Trend (last 6 months) ────────────────────
+    const monthMap = {};
+    const now6 = new Date(); now6.setMonth(now6.getMonth() - 5); now6.setDate(1); now6.setHours(0,0,0,0);
+    bookings.forEach(b => {
+        const d = new Date(b.created_at || b.start_datetime);
+        if (d < now6) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        if (!monthMap[key]) monthMap[key] = { label: thaiMonths[d.getMonth()] + ' ' + (d.getFullYear()+543), total:0, done:0, cancel:0 };
+        monthMap[key].total++;
+        if (b.status === 'completed') monthMap[key].done++;
+        if (b.status === 'cancelled') monthMap[key].cancel++;
+    });
+    const sortedMonths = Object.keys(monthMap).sort();
+    const trendLabels = sortedMonths.map(k => monthMap[k].label);
+    const trendTotal  = sortedMonths.map(k => monthMap[k].total);
+    const trendDone   = sortedMonths.map(k => monthMap[k].done);
+    const trendCancel = sortedMonths.map(k => monthMap[k].cancel);
+
+    const trendCanvas = document.getElementById('d-trend-chart');
+    if (trendCanvas && window.Chart) {
+        new Chart(trendCanvas, {
+            data: {
+                labels: trendLabels,
+                datasets: [
+                    { type:'bar', label:'ทั้งหมด', data: trendTotal, backgroundColor:'rgba(120,80,240,0.18)', borderColor:'rgba(120,80,240,0.8)', borderWidth:2, borderRadius:7, yAxisID:'y' },
+                    { type:'line', label:'เสร็จสิ้น', data: trendDone, borderColor:'#16a34a', backgroundColor:'rgba(40,180,120,0.08)', borderWidth:2.5, tension:0.4, pointBackgroundColor:'#16a34a', pointRadius:5, fill:false, yAxisID:'y' },
+                    { type:'line', label:'ยกเลิก', data: trendCancel, borderColor:'#dc2626', backgroundColor:'transparent', borderWidth:2, tension:0.4, pointBackgroundColor:'#dc2626', pointRadius:4, fill:false, yAxisID:'y' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position:'top', labels:{ boxWidth:11, padding:14, font:{size:12,family:'Sarabun'} } } },
+                scales: {
+                    y:  { beginAtZero:true, ticks:{stepSize:1}, grid:{color:'rgba(130,120,200,0.08)'} },
+                    x:  { grid:{display:false} }
+                }
+            }
+        });
+    }
+
+    // ── 3. Status Donut ──────────────────────────────────────
+    const donutData   = [completed, approved, pending, cancelled];
+    const donutLabels = ['เสร็จสิ้น','อนุมัติแล้ว','รออนุมัติ','ยกเลิก'];
+    const donutColors = ['#16a34a','#0284c7','#d97706','#dc2626'];
+    const statusCanvas = document.getElementById('d-status-donut');
+    if (statusCanvas && window.Chart) {
+        new Chart(statusCanvas, {
+            type: 'doughnut',
+            data: { labels: donutLabels, datasets: [{ data: donutData, backgroundColor: donutColors.map(c=>c+'22'), borderColor: donutColors, borderWidth:2.5, hoverOffset:10 }] },
+            options: { responsive:true, maintainAspectRatio:false, cutout:'72%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} รายการ`}} } }
+        });
+        const legEl = document.getElementById('d-status-legend');
+        if (legEl) legEl.innerHTML = donutLabels.map((l,i) => `<div class="legend-item-d"><div class="legend-dot-d" style="background:${donutColors[i]}"></div>${l} (${donutData[i]})</div>`).join('');
+    }
+
+    // ── 4. Trip Type Donut ───────────────────────────────────
+    const tripCanvas = document.getElementById('d-trip-donut');
+    if (tripCanvas && window.Chart) {
+        new Chart(tripCanvas, {
+            type: 'doughnut',
+            data: { labels:['ประจำวัน','ต่างจังหวัด'], datasets:[{ data:[dailyT, provinceT], backgroundColor:['rgba(20,184,166,0.2)','rgba(249,115,22,0.2)'], borderColor:['#14b8a6','#f97316'], borderWidth:2.5, hoverOffset:10 }] },
+            options: { responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} รายการ`}} } }
+        });
+        const tlegEl = document.getElementById('d-trip-legend');
+        if (tlegEl) tlegEl.innerHTML = `<div class="legend-item-d"><div class="legend-dot-d" style="background:#14b8a6"></div>ประจำวัน (${dailyT})</div><div class="legend-item-d"><div class="legend-dot-d" style="background:#f97316"></div>ต่างจังหวัด (${provinceT})</div>`;
+    }
+
+    // ── 5. Department usage ──────────────────────────────────
+    const deptMap = {};
+    bookings.forEach(b => {
+        const dept = b.creator_dept_name || b.requester_name || 'ไม่ระบุ';
+        deptMap[dept] = (deptMap[dept] || 0) + 1;
+    });
+    const deptList = Object.entries(deptMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const deptColors = ['#7c3aed','#0284c7','#16a34a','#d97706','#dc2626','#14b8a6'];
+    const deptMax = deptList[0] ? deptList[0][1] : 1;
+    const deptEl = document.getElementById('d-dept-list');
+    if (deptEl) deptEl.innerHTML = deptList.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">ไม่มีข้อมูล</p>' :
+        deptList.map(([name,cnt],i) => `
+            <div class="dept-row">
+                <span class="dept-name">${escapeHtml(name)}</span>
+                <div class="dept-bar-bg"><div class="dept-bar-fill" style="width:${Math.round(cnt/deptMax*100)}%;background:${deptColors[i%deptColors.length]}"></div></div>
+                <span class="dept-cnt">${cnt}</span>
+            </div>`).join('');
+
+    // ── 6. Top Destinations ──────────────────────────────────
+    const destMap = {};
+    bookings.forEach(b => { if(b.destination) destMap[b.destination] = (destMap[b.destination]||0) + 1; });
+    const destList = Object.entries(destMap).sort((a,b)=>b[1]-a[1]).slice(0,7);
+    const rankClass = ['r1','r2','r3'];
+    const rankEmoji = ['🥇','🥈','🥉'];
+    const destEl = document.getElementById('d-dest-list');
+    if (destEl) destEl.innerHTML = destList.length === 0 ? '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">ไม่มีข้อมูล</p>' :
+        destList.map(([name,cnt],i) => `
+            <div class="dest-row">
+                <div class="dest-rank ${rankClass[i]||''}">${i < 3 ? rankEmoji[i] : i+1}</div>
+                <span class="dest-name">${escapeHtml(name)}</span>
+                <span class="dest-cnt">${cnt}</span>
+            </div>`).join('');
+
+    // ── 7. Vehicle utilization ───────────────────────────────
+    const vehStats = vehicles.map(v => {
+        const vb = bookings.filter(b => b.vehicle_id == v.id);
+        const km = vb.reduce((s,b) => s + (b.start_mileage && b.end_mileage ? parseInt(b.end_mileage)-parseInt(b.start_mileage) : 0), 0);
+        return { label: v.license_plate, brand: v.brand_model, trips: vb.length, km };
+    }).sort((a,b) => b.trips - a.trips);
+
+    const vehBarCanvas = document.getElementById('d-veh-bar');
+    if (vehBarCanvas && window.Chart) {
+        new Chart(vehBarCanvas, {
+            type: 'bar',
+            data: {
+                labels: vehStats.map(v => v.label),
+                datasets: [
+                    { label:'จำนวนเที่ยว', data: vehStats.map(v=>v.trips), backgroundColor:'rgba(120,80,240,0.75)', borderRadius:7, yAxisID:'y' },
+                    { label:'ระยะทาง (กม.)', data: vehStats.map(v=>v.km), backgroundColor:'rgba(40,160,220,0.65)', borderRadius:7, yAxisID:'y1' }
+                ]
+            },
+            options: {
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{position:'top', labels:{boxWidth:11,padding:12,font:{size:12,family:'Sarabun'}}} },
+                scales: {
+                    y:  { beginAtZero:true, ticks:{stepSize:1}, position:'left', grid:{color:'rgba(130,120,200,0.08)'}, title:{display:true,text:'เที่ยว',font:{size:11}} },
+                    y1: { beginAtZero:true, position:'right', grid:{display:false}, title:{display:true,text:'กม.',font:{size:11}} },
+                    x:  { grid:{display:false} }
+                }
+            }
+        });
+    }
+    const vehMax = vehStats[0] ? vehStats[0].trips : 1;
+    const vehUtilEl = document.getElementById('d-veh-util-list');
+    if (vehUtilEl) vehUtilEl.innerHTML = vehStats.map(v => `
+        <div class="util-bar-row">
+            <div class="util-bar-top">
+                <span style="font-weight:600;font-size:12.5px">${escapeHtml(v.brand)}</span>
+                <span style="font-size:11px;background:var(--bg-input);padding:2px 7px;border-radius:6px;color:var(--text-muted)">${escapeHtml(v.label)}</span>
+            </div>
+            <div class="util-bar-bg"><div class="util-bar-fill" style="width:${vehMax > 0 ? Math.round(v.trips/vehMax*100) : 0}%"></div></div>
+            <div class="util-bar-sub">${v.trips} เที่ยว · ${v.km.toLocaleString()} กม.</div>
+        </div>`).join('');
+
+    // ── 8. Recent bookings table ─────────────────────────────
+    const thMonth = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    function fmtDate(dt) {
+        if (!dt) return '-';
+        const d = new Date(dt);
+        return `${d.getDate()} ${thMonth[d.getMonth()]} ${d.getFullYear()+543}`;
+    }
+    function fmtTime(dt) {
+        if (!dt) return '';
+        const d = new Date(dt);
+        return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`;
+    }
+    function statusBadge(s) {
+        if (s==='completed')    return '<span class="badge-d bd-ok">✅ เสร็จสิ้น</span>';
+        if (s==='approved')     return '<span class="badge-d bd-ap">✔️ อนุมัติ</span>';
+        if (s==='pending_admin')return '<span class="badge-d bd-wt">⏳ รออนุมัติ</span>';
+        if (s==='cancelled')    return '<span class="badge-d bd-cx">❌ ยกเลิก</span>';
+        return `<span class="badge-d">${escapeHtml(s)}</span>`;
+    }
+    function tripBadge(t) {
+        return t === 'province'
+            ? '<span class="badge-d bd-pv">✈️ ต่างจังหวัด</span>'
+            : '<span class="badge-d bd-dy">📍 ประจำวัน</span>';
+    }
+
+    const recent = [...bookings].sort((a,b) => new Date(b.created_at || b.start_datetime) - new Date(a.created_at || a.start_datetime)).slice(0,8);
+    const tbody = document.getElementById('d-recent-tbody');
+    if (tbody) tbody.innerHTML = recent.length === 0
+        ? '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">ยังไม่มีรายการจอง</td></tr>'
+        : recent.map(b => `
+            <tr>
+                <td style="color:var(--text-muted);font-weight:600;font-size:12px">FF-${String(b.id).padStart(4,'0')}</td>
+                <td>
+                    <div style="font-weight:600;font-size:13px">${escapeHtml(b.requester_name||'')}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(b.creator_fullname||'')}</div>
+                </td>
+                <td style="max-width:200px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px">${escapeHtml(b.destination||'')}</div></td>
+                <td>${tripBadge(b.trip_type)}</td>
+                <td>
+                    <div style="font-size:12px">${fmtDate(b.start_datetime)}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${fmtTime(b.start_datetime)}</div>
+                </td>
+                <td>
+                    ${b.license_plate
+                        ? `<div style="font-weight:600;font-size:12px">${escapeHtml(b.license_plate)}</div><div style="font-size:11px;color:var(--text-muted)">${escapeHtml(b.brand_model||'')}</div>`
+                        : '<span style="color:var(--text-muted);font-size:12px">—</span>'}
+                </td>
+                <td style="font-size:12px">${escapeHtml(b.driver_name||'—')}</td>
+                <td>${statusBadge(b.status)}</td>
+                <td><a href="print_booking.php?id=${b.id}" target="_blank" style="color:var(--primary);font-size:13px" title="พิมพ์ใบขออนุญาต">🖨️</a></td>
+            </tr>`).join('');
+
+    // Update banner date
+    const bannerDate = document.querySelector('.dash-banner-date');
+    if (bannerDate) bannerDate.textContent = `📅 ${thaiNow} · รวมทั้งหมด ${total} รายการใช้รถ`;
+}
+
 
 function loadCalendarView(container) {
     container.innerHTML = `

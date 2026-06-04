@@ -88,7 +88,6 @@ try {
         status VARCHAR(50) DEFAULT 'active' -- 'active', 'vacation', 'sick'
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-    // Bookings Table
     $pdo->exec("CREATE TABLE bookings (
         id INT AUTO_INCREMENT PRIMARY KEY,
         requester_name VARCHAR(255) NOT NULL,
@@ -96,6 +95,11 @@ try {
         end_datetime DATETIME NOT NULL,
         destination VARCHAR(255) NOT NULL,
         purpose TEXT NOT NULL,
+        subject VARCHAR(255) NULL,
+        trip_type VARCHAR(50) DEFAULT 'daily',
+        controller_id INT NULL,
+        backup_controller_id INT NULL,
+        passenger_ids TEXT NULL,
         passenger_count INT DEFAULT 1,
         status VARCHAR(50) DEFAULT 'pending_admin', -- 'pending_admin', 'approved', 'completed', 'cancelled'
         vehicle_id INT,
@@ -108,7 +112,9 @@ try {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
         FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE SET NULL,
-        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (controller_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (backup_controller_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     // Routine Templates Table

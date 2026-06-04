@@ -841,11 +841,18 @@ switch ($action) {
                 SELECT b.*, 
                        d.name as driver_name, d.phone as driver_phone,
                        v.license_plate, v.province, v.brand_model, v.type as vehicle_type, v.current_mileage as vehicle_current_mileage,
-                       u.fullname as creator_fullname
+                       u.fullname as creator_fullname, u.title as creator_title,
+                       dept.name as creator_dept_name, divi.name as creator_div_name,
+                       u_ctrl.fullname as controller_fullname,
+                       u_bak.fullname as backup_controller_fullname
               FROM bookings b
               LEFT JOIN drivers d ON b.driver_id = d.id
               LEFT JOIN vehicles v ON b.vehicle_id = v.id
               LEFT JOIN users u ON b.created_by = u.id
+              LEFT JOIN departments dept ON u.department_id = dept.id
+              LEFT JOIN divisions divi ON u.division_id = divi.id
+              LEFT JOIN users u_ctrl ON b.controller_id = u_ctrl.id
+              LEFT JOIN users u_bak ON b.backup_controller_id = u_bak.id
               ORDER BY b.start_datetime DESC, b.id DESC
           ")->fetchAll();
           echo json_encode(['status' => 'success', 'bookings' => $bookings], JSON_UNESCAPED_UNICODE);
@@ -863,6 +870,12 @@ switch ($action) {
         $purpose = isset($input_data['purpose']) ? trim($input_data['purpose']) : '';
         $passenger_count = isset($input_data['passenger_count']) ? intval($input_data['passenger_count']) : 1;
         
+        $subject = isset($input_data['subject']) ? trim($input_data['subject']) : '';
+        $trip_type = isset($input_data['trip_type']) ? trim($input_data['trip_type']) : 'daily';
+        $controller_id = isset($input_data['controller_id']) && $input_data['controller_id'] !== '' ? intval($input_data['controller_id']) : null;
+        $backup_controller_id = isset($input_data['backup_controller_id']) && $input_data['backup_controller_id'] !== '' ? intval($input_data['backup_controller_id']) : null;
+        $passenger_ids = isset($input_data['passenger_ids']) ? trim($input_data['passenger_ids']) : '[]';
+
         $driver_id = isset($input_data['driver_id']) && $input_data['driver_id'] !== '' ? intval($input_data['driver_id']) : null;
         $vehicle_id = isset($input_data['vehicle_id']) && $input_data['vehicle_id'] !== '' ? intval($input_data['vehicle_id']) : null;
         $status = isset($input_data['status']) ? trim($input_data['status']) : 'pending_admin';
@@ -884,12 +897,14 @@ switch ($action) {
                     $stmt = $pdo->prepare("
                         UPDATE bookings 
                         SET requester_name = ?, start_datetime = ?, end_datetime = ?, destination = ?, 
-                            purpose = ?, passenger_count = ?, driver_id = ?, vehicle_id = ?, status = ?
+                            purpose = ?, subject = ?, trip_type = ?, controller_id = ?, backup_controller_id = ?, passenger_ids = ?,
+                            passenger_count = ?, driver_id = ?, vehicle_id = ?, status = ?
                         WHERE id = ?
                     ");
                     $stmt->execute([
                         $requester_name, $start_datetime, $end_datetime, $destination, 
-                        $purpose, $passenger_count, $driver_id, $vehicle_id, $status, $id
+                        $purpose, $subject, $trip_type, $controller_id, $backup_controller_id, $passenger_ids,
+                        $passenger_count, $driver_id, $vehicle_id, $status, $id
                     ]);
                 } else {
                     $stmt_check = $pdo->prepare("SELECT status FROM bookings WHERE id = ?");
@@ -902,22 +917,25 @@ switch ($action) {
                     $stmt = $pdo->prepare("
                         UPDATE bookings 
                         SET requester_name = ?, start_datetime = ?, end_datetime = ?, destination = ?, 
-                            purpose = ?, passenger_count = ?
+                            purpose = ?, subject = ?, trip_type = ?, controller_id = ?, backup_controller_id = ?, passenger_ids = ?,
+                            passenger_count = ?
                         WHERE id = ?
                     ");
                     $stmt->execute([
                         $requester_name, $start_datetime, $end_datetime, $destination, 
-                        $purpose, $passenger_count, $id
+                        $purpose, $subject, $trip_type, $controller_id, $backup_controller_id, $passenger_ids,
+                        $passenger_count, $id
                     ]);
                 }
             } else {
                 $stmt = $pdo->prepare("
-                    INSERT INTO bookings (requester_name, start_datetime, end_datetime, destination, purpose, passenger_count, driver_id, vehicle_id, status, job_type, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'adhoc', ?)
+                    INSERT INTO bookings (requester_name, start_datetime, end_datetime, destination, purpose, subject, trip_type, controller_id, backup_controller_id, passenger_ids, passenger_count, driver_id, vehicle_id, status, job_type, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'adhoc', ?)
                 ");
                 $stmt->execute([
                     $requester_name, $start_datetime, $end_datetime, $destination, $purpose, 
-                    $passenger_count, $driver_id, $vehicle_id, $status, $_SESSION['user_id']
+                    $subject, $trip_type, $controller_id, $backup_controller_id, $passenger_ids, $passenger_count, 
+                    $driver_id, $vehicle_id, $status, $_SESSION['user_id']
                 ]);
             }
             echo json_encode(['status' => 'success', 'message' => 'บันทึกข้อมูลการขอใช้รถเรียบร้อยแล้ว'], JSON_UNESCAPED_UNICODE);

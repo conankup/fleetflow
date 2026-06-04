@@ -1521,52 +1521,137 @@ async function loadBookingsView(container) {
 }
 
 // Modal Form for requesting booking
-window.openSaveBookingModal = function(b = null) {
+// Modal Form for requesting booking
+window.openSaveBookingModal = async function(b = null) {
     const isEdit = b !== null;
+    
+    // Fetch users for controller and passenger selectors
+    const usersRes = await apiFetch('get_users', 'GET');
+    const allUsers = usersRes.status === 'success' ? usersRes.users : [];
     
     // Prepare values
     const requester = b ? escapeHtml(b.requester_name) : escapeHtml(currentUser.fullname);
     const destination = b ? escapeHtml(b.destination) : '';
     const purpose = b ? escapeHtml(b.purpose) : '';
-    const passengers = b ? b.passenger_count : 1;
+    const subject = b ? escapeHtml(b.subject) : '';
+    const trip_type = b ? b.trip_type : 'daily';
+    const controller_id = b ? b.controller_id : currentUser.id;
+    const backup_controller_id = b ? b.backup_controller_id : currentUser.id;
+    
+    let selectedPassengerIds = [];
+    if (b && b.passenger_ids) {
+        try {
+            selectedPassengerIds = JSON.parse(b.passenger_ids).map(id => parseInt(id));
+        } catch(e) {
+            selectedPassengerIds = [];
+        }
+    }
     
     const startDT = b ? b.start_datetime.replace(' ', 'T').substring(0, 16) : '';
     const endDT = b ? b.end_datetime.replace(' ', 'T').substring(0, 16) : '';
     
+    // Build user options for dropdowns
+    let controllerOpts = '';
+    let backupOpts = '';
+    allUsers.forEach(u => {
+        const isCtrlSel = u.id == controller_id ? 'selected' : '';
+        const isBakSel = u.id == backup_controller_id ? 'selected' : '';
+        controllerOpts += `<option value="${u.id}" ${isCtrlSel}>${escapeHtml(u.fullname)} (${escapeHtml(u.title || 'ไม่มีตำแหน่ง')})</option>`;
+        backupOpts += `<option value="${u.id}" ${isBakSel}>${escapeHtml(u.fullname)} (${escapeHtml(u.title || 'ไม่มีตำแหน่ง')})</option>`;
+    });
+    
+    // Build passenger checkboxes
+    let passengerCheckboxes = '';
+    allUsers.forEach(u => {
+        const isChecked = selectedPassengerIds.includes(u.id);
+        passengerCheckboxes += `
+            <label class="checkbox-container" style="display:flex; margin-bottom:8px; font-size:13.5px; padding-left:24px; cursor:pointer;">
+                ${escapeHtml(u.fullname)} <span class="text-secondary" style="font-size:11px; margin-left:6px;">(${escapeHtml(u.title || 'ไม่มีตำแหน่ง')})</span>
+                <input type="checkbox" name="bk-passengers-check" value="${u.id}" ${isChecked ? 'checked' : ''}>
+                <span class="checkmark" style="border-radius:4px; top:50%; transform:translateY(-50%);"></span>
+            </label>
+        `;
+    });
+    
     const formHtml = `
-        <form id="booking-request-form" onsubmit="handleSaveBooking(event, ${isEdit ? b.id : 0})">
-            <div class="form-group">
-                <label class="form-label" for="bk-requester">ชื่อผู้ขอใช้รถ / ส่วนงานที่แจ้งจอง</label>
-                <input type="text" id="bk-requester" class="form-control" required value="${requester}" placeholder="ระบุชื่อผู้ขอใช้หรือแผนก">
+        <form id="booking-request-form" onsubmit="handleSaveBooking(event, ${isEdit ? b.id : 0}, '${isEdit ? escapeHtml(b.requester_name) : escapeHtml(currentUser.fullname)}')">
+            <!-- Read-only Profile Info Section -->
+            <div class="profile-info-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom: 20px; padding: 14px; background: var(--nav-hover-bg); border-radius: 8px; border: 1px dashed var(--border-color);">
+                <div style="font-size:13.5px;"><strong>ผู้ขออนุญาต:</strong> ${escapeHtml(currentUser.fullname)}</div>
+                <div style="font-size:13.5px;"><strong>ตำแหน่ง:</strong> ${escapeHtml(currentUser.title || '-')}</div>
+                <div style="font-size:13.5px;"><strong>ส่วนงาน:</strong> ${escapeHtml(currentUser.department || '-')}</div>
+                <div style="font-size:13.5px;"><strong>งาน:</strong> ${escapeHtml(currentUser.division || '-')}</div>
+                <div style="font-size:13.5px; grid-column: span 2;"><strong>วันที่ทำรายการ:</strong> ${new Date().toLocaleDateString('th-TH', {year: 'numeric', month: 'long', day: 'numeric'})}</div>
             </div>
             
+            <div class="form-group">
+                <label class="form-label" for="bk-subject">เรื่อง *</label>
+                <input type="text" id="bk-subject" class="form-control" required value="${subject}" placeholder="เช่น ขอใช้รถยนต์ส่วนกลางไปติดต่อราชการ, รับ-ส่ง หนังสือราชการ">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="bk-dest">ขออนุญาตใช้รถยนต์ไปติดต่อราชการที่... *</label>
+                <input type="text" id="bk-dest" class="form-control" required value="${destination}" placeholder="ระบุสถานที่ปลายทางและจังหวัด เช่น สกร. จังหวัดปทุมธานี">
+            </div>
+
+            <div style="display:grid; grid-template-columns:2fr 1fr; gap:16px;">
+                <div class="form-group">
+                    <label class="form-label" for="bk-purpose">วัตถุประสงค์ในการขอใช้รถ *</label>
+                    <input type="text" id="bk-purpose" class="form-control" required value="${purpose}" placeholder="ระบุวัตถุประสงค์สั้นๆ เช่น รับ-ส่งหนังสือ, สัมมนาโครงการ">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ประเภทการเดินทาง *</label>
+                    <div style="display:flex; gap:16px; margin-top:8px;">
+                        <label class="checkbox-container" style="margin-bottom:0; padding-left:24px; font-size:13.5px;">
+                            ประจำวัน
+                            <input type="radio" name="trip_type" value="daily" ${trip_type === 'daily' ? 'checked' : ''}>
+                            <span class="checkmark" style="border-radius:50%; top:50%; transform:translateY(-50%);"></span>
+                        </label>
+                        <label class="checkbox-container" style="margin-bottom:0; padding-left:24px; font-size:13.5px;">
+                            ต่างจังหวัด
+                            <input type="radio" name="trip_type" value="province" ${trip_type === 'province' ? 'checked' : ''}>
+                            <span class="checkmark" style="border-radius:50%; top:50%; transform:translateY(-50%);"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                 <div class="form-group">
-                    <label class="form-label" for="bk-start">วันและเวลาเดินทางไป</label>
+                    <label class="form-label" for="bk-start">วันและเวลาเดินทางไป *</label>
                     <input type="datetime-local" id="bk-start" class="form-control" required value="${startDT}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="bk-end">วันและเวลาเดินทางกลับ</label>
+                    <label class="form-label" for="bk-end">วันและเวลาเดินทางกลับ *</label>
                     <input type="datetime-local" id="bk-end" class="form-control" required value="${endDT}">
                 </div>
             </div>
-            
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:6px;">
+                <div class="form-group">
+                    <label class="form-label" for="bk-controller">ผู้ควบคุมรถ (หลัก) *</label>
+                    <select id="bk-controller" class="form-control" style="padding-left:14px;" required>
+                        <option value="" disabled>-- เลือกผู้ควบคุมรถ --</option>
+                        ${controllerOpts}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="bk-backup-controller">ผู้ควบคุมรถ (สำรองกรณีไม่มีผู้ควบคุมหลัก) *</label>
+                    <select id="bk-backup-controller" class="form-control" style="padding-left:14px;" required>
+                        <option value="" disabled>-- เลือกผู้ควบคุมรถสำรอง --</option>
+                        ${backupOpts}
+                    </select>
+                </div>
+            </div>
+
             <div class="form-group">
-                <label class="form-label" for="bk-dest">สถานที่ปลายทาง (โปรดระบุต่างจังหวัดด้วยหากไปนอกพื้นที่ เช่น จ.ชลบุรี (ต่างจังหวัด))</label>
-                <input type="text" id="bk-dest" class="form-control" required value="${destination}" placeholder="ระบุสถานที่ปลายทางและจังหวัด">
-            </div>
-            
-            <div style="display:grid; grid-template-columns:2fr 1fr; gap:16px;">
-                <div class="form-group">
-                    <label class="form-label" for="bk-purpose">วัตถุประสงค์ในการขอใช้รถ</label>
-                    <input type="text" id="bk-purpose" class="form-control" required value="${purpose}" placeholder="e.g. เดินทางไปสัมมนา, ส่งหนังสือราชการ">
+                <label class="form-label">บุคคลร่วมคณะเดินทาง</label>
+                <div class="passenger-select-box glass-panel" style="padding: 12px; max-height: 160px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input);">
+                    ${passengerCheckboxes}
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="bk-passengers">จำนวนผู้เดินทาง (คน)</label>
-                    <input type="number" id="bk-passengers" class="form-control" required value="${passengers}" min="1" max="50">
-                </div>
+                <small class="text-muted" style="margin-top:4px; display:block;">เลือกรายชื่อผู้ร่วมเดินทางในทริปนี้</small>
             </div>
-            
+
             <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
                 <button type="button" class="btn btn-secondary" onclick="closeGlobalModal()">ยกเลิก</button>
                 <button type="submit" class="btn btn-primary">ส่งคำขอจองรถ</button>
@@ -1577,30 +1662,40 @@ window.openSaveBookingModal = function(b = null) {
     openGlobalModal(isEdit ? 'แก้ไขรายละเอียดการขอใช้รถ' : 'ส่งแบบฟอร์มขอใช้รถยนต์ส่วนกลาง', formHtml);
 };
 
-window.handleSaveBooking = async function(event, id) {
+window.handleSaveBooking = async function(event, id, requesterName) {
     event.preventDefault();
     
     const startVal = document.getElementById('bk-start').value;
     const endVal = document.getElementById('bk-end').value;
     
-    // Check simple date validation
     if (new Date(startVal) >= new Date(endVal)) {
         alert("วันเวลาเดินทางกลับ ต้องอยู่หลังวันเวลาเดินทางไป");
         return;
     }
     
-    // Convert inputs back to YYYY-MM-DD HH:MM:SS format
     const startDT = startVal.replace('T', ' ') + ':00';
     const endDT = endVal.replace('T', ' ') + ':00';
     
+    // Get selected passenger IDs
+    const checkedPass = document.querySelectorAll('input[name="bk-passengers-check"]:checked');
+    const passengerIds = Array.from(checkedPass).map(cb => parseInt(cb.value));
+    
+    const tripTypeEl = document.querySelector('input[name="trip_type"]:checked');
+    const trip_type = tripTypeEl ? tripTypeEl.value : 'daily';
+    
     const body = {
         id: id,
-        requester_name: document.getElementById('bk-requester').value.trim(),
+        requester_name: requesterName,
         start_datetime: startDT,
         end_datetime: endDT,
         destination: document.getElementById('bk-dest').value.trim(),
         purpose: document.getElementById('bk-purpose').value.trim(),
-        passenger_count: parseInt(document.getElementById('bk-passengers').value)
+        subject: document.getElementById('bk-subject').value.trim(),
+        trip_type: trip_type,
+        controller_id: parseInt(document.getElementById('bk-controller').value),
+        backup_controller_id: parseInt(document.getElementById('bk-backup-controller').value),
+        passenger_ids: JSON.stringify(passengerIds),
+        passenger_count: passengerIds.length
     };
     
     const res = await apiFetch('save_booking', 'POST', body);

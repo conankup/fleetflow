@@ -83,7 +83,7 @@ function formatThaiDateOnly($date_str) {
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>ใบอนุญาตใช้รถยนต์ส่วนกลาง - เลขที่ <?= htmlspecialchars($booking['id']) ?></title>
+    <title>ใบขออนุญาตใช้รถยนต์ - เลขที่ <?= htmlspecialchars($booking['id']) ?></title>
     <!-- Google Font: Sarabun -->
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -92,96 +92,51 @@ function formatThaiDateOnly($date_str) {
             background-color: #f4f6f9;
             color: #000;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
         }
         .a4-container {
             background-color: #fff;
             width: 210mm;
             min-height: 297mm;
             margin: 0 auto;
-            padding: 25mm 20mm;
+            padding: 15mm 15mm;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             box-sizing: border-box;
             position: relative;
-            font-size: 16px;
-            line-height: 1.8;
+            font-size: 15px;
+            line-height: 1.9;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .text-left { text-align: left; }
         
         .header-section {
-            margin-bottom: 30px;
-            position: relative;
-        }
-        
-        .garuda-logo {
-            width: 3.5cm;
-            height: auto;
-            display: block;
-            margin: 0 auto 15px auto;
+            margin-bottom: 25px;
+            text-align: center;
         }
         
         .title-main {
-            font-size: 20px;
+            font-size: 21px;
             font-weight: 700;
-            margin-bottom: 5px;
+            text-decoration: underline;
+            margin-bottom: 2px;
+        }
+        .title-sub {
+            font-size: 16.5px;
+            font-weight: 700;
         }
         
-        .document-meta {
-            margin-top: 10px;
-            font-size: 15px;
-        }
-        
-        .meta-line {
-            margin-bottom: 10px;
-        }
-        
-        .info-content {
-            text-indent: 2.5cm;
-            margin-bottom: 15px;
-            text-align: justify;
-        }
-        
-        .dotted-line {
-            border-bottom: 1px dotted #333;
-            display: inline-block;
-            padding-bottom: 0px;
-        }
-        
-        .table-allocation {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 25px 0;
-        }
-        
-        .table-allocation td {
-            padding: 8px 12px;
-            border: 1px solid #000;
-        }
-        
-        .signature-section {
-            margin-top: 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            page-break-inside: avoid;
-        }
-        
-        .sig-box {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .sig-line {
-            width: 70%;
-            margin: 40px auto 10px auto;
+        .dotted-fill-inline {
             border-bottom: 1px dotted #000;
+            font-weight: 600;
+            padding: 0 4px;
+            display: inline-block;
+            text-align: center;
         }
         
         .no-print-banner {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         .btn-print {
@@ -203,20 +158,22 @@ function formatThaiDateOnly($date_str) {
             transform: translateY(-1px);
         }
 
-        .status-stamp {
-            display: inline-block;
-            padding: 4px 12px;
+        .status-stamp-print {
+            position: absolute;
+            top: 25mm;
+            left: 20mm;
             border: 2px solid;
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: bold;
             border-radius: 4px;
-            font-weight: 700;
-            font-size: 14px;
-            text-transform: uppercase;
-            margin-top: 5px;
+            transform: rotate(-10deg);
+            opacity: 0.85;
         }
-        .status-pending { border-color: #ff9800; color: #ff9800; }
-        .status-approved { border-color: #4caf50; color: #4caf50; }
-        .status-completed { border-color: #2196f3; color: #2196f3; }
-        .status-cancelled { border-color: #f44336; color: #f44336; }
+        .stamp-pending { border-color: #ff9800; color: #ff9800; }
+        .stamp-approved { border-color: #4caf50; color: #4caf50; }
+        .stamp-completed { border-color: #2196f3; color: #2196f3; }
+        .stamp-cancelled { border-color: #f44336; color: #f44336; }
         
         @media print {
             body {
@@ -226,7 +183,7 @@ function formatThaiDateOnly($date_str) {
             .a4-container {
                 box-shadow: none;
                 margin: 0;
-                padding: 0;
+                padding: 5mm 10mm;
                 width: auto;
                 min-height: auto;
             }
@@ -239,128 +196,177 @@ function formatThaiDateOnly($date_str) {
 <body>
 
     <div class="no-print-banner">
-        <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> 🖨️ สั่งพิมพ์เอกสารใบขอใช้รถ</button>
+        <button class="btn-print" onclick="window.print()">🖨️ สั่งพิมพ์ใบขออนุญาตใช้รถยนต์</button>
     </div>
 
     <div class="a4-container">
-        <!-- Garuda Emblem (standard for official Thai docs) -->
-        <div class="text-center">
-            <!-- Simple SVG Garuda Logo -->
-            <svg class="garuda-logo" viewBox="0 0 100 100" width="80" height="80">
-                <path d="M50 10 C50 10, 48 20, 45 25 C42 30, 35 32, 28 32 C33 36, 42 36, 47 38 C42 45, 38 52, 33 60 C38 60, 43 55, 47 50 C47 55, 45 65, 42 75 C45 72, 48 68, 50 64 C52 68, 55 72, 58 75 C55 65, 53 55, 53 50 C57 55, 62 60, 67 60 C62 52, 58 45, 53 38 C58 36, 67 36, 72 32 C65 32, 58 30, 55 25 C52 20, 50 10, 50 10 Z" fill="#b01c1c"/>
-                <path d="M50 35 L45 42 L42 48 L46 48 L50 44 L54 48 L58 48 L55 42 Z" fill="#ffd700"/>
-                <circle cx="50" cy="30" r="3" fill="#b01c1c"/>
-            </svg>
-            <div class="title-main">ใบขออนุญาตใช้รถยนต์ส่วนกลาง</div>
-            <div class="header-subtitle">ระบบบริหารจัดการยานพาหนะ FleetFlow</div>
+        <!-- Status Stamp for reference -->
+        <?php
+        $status = $booking['status'];
+        $stamp_class = 'stamp-pending';
+        $stamp_text = 'รออนุมัติ';
+        if ($status === 'approved') { $stamp_class = 'stamp-approved'; $stamp_text = 'อนุมัติแล้ว'; }
+        elseif ($status === 'completed') { $stamp_class = 'stamp-completed'; $stamp_text = 'เดินทางเสร็จสิ้น'; }
+        elseif ($status === 'cancelled') { $stamp_class = 'stamp-cancelled'; $stamp_text = 'ยกเลิกคำขอ'; }
+        ?>
+        <div class="status-stamp-print <?= $stamp_class ?>"><?= $stamp_text ?></div>
+
+        <?php
+        // Prepare Thai Dates
+        $request_date_parts = getThaiDateParts($booking['created_at']);
+        $start_parts = getThaiDateParts($booking['start_datetime']);
+        $end_parts = getThaiDateParts($booking['end_datetime']);
+        
+        $is_daily = ($booking['trip_type'] === 'daily');
+        $is_province = ($booking['trip_type'] === 'province');
+        
+        // Prepare passengers string
+        $passenger_names = [];
+        if (!empty($booking['passenger_ids'])) {
+            $passenger_ids = json_decode($booking['passenger_ids'], true);
+            if (is_array($passenger_ids) && count($passenger_ids) > 0) {
+                $in_clause = implode(',', array_fill(0, count($passenger_ids), '?'));
+                $stmt_pass = $pdo->prepare("SELECT fullname FROM users WHERE id IN ($in_clause)");
+                $stmt_pass->execute($passenger_ids);
+                $passenger_names = $stmt_pass->fetchAll(PDO::FETCH_COLUMN);
+            }
+        }
+        $passenger_str = implode(', ', $passenger_names);
+        if (empty($passenger_str)) {
+            $passenger_str = '........................................................................................................................................................................';
+        }
+        ?>
+
+        <div class="header-section">
+            <div class="title-main">แบบใบขออนุญาตใช้รถยนต์</div>
+            <div class="title-sub">ศูนย์วิทยาศาสตร์เพื่อการศึกษารังสิต กรมส่งเสริมการเรียนรู้</div>
         </div>
 
-        <div class="text-right document-meta">
-            <div class="meta-line"><strong>เลขที่คำขอ:</strong> <?= htmlspecialchars($booking['id']) ?></div>
-            <div class="meta-line"><strong>วันที่เขียนคำขอ:</strong> <?= formatThaiDateOnly($booking['created_at']) ?></div>
+        <div class="text-right" style="margin-bottom: 15px; font-size: 15.5px;">
+            วันที่ <span class="dotted-fill-inline" style="min-width: 1.2cm;"><?= $request_date_parts['day'] ?></span>
+            เดือน <span class="dotted-fill-inline" style="min-width: 3.2cm;"><?= $request_date_parts['month'] ?></span>
+            พ.ศ. <span class="dotted-fill-inline" style="min-width: 1.6cm;"><?= $request_date_parts['year'] ?></span>
         </div>
 
-        <div style="margin-top: 30px;">
-            <div class="meta-line"><strong>เรื่อง</strong> ขอใช้รถยนต์ส่วนกลาง</div>
-            <div class="meta-line"><strong>เรียน</strong> หัวหน้างานยานพาหนะ ฝ่ายบริหารงานกลาง</div>
+        <div style="margin-bottom: 15px; font-size: 15.5px;">
+            <strong>เรียน</strong> ผู้อำนวยการศูนย์วิทยาศาสตร์เพื่อการศึกษารังสิต
         </div>
 
-        <div style="margin-top: 20px;">
-            <p class="info-content">
-                ด้วยข้าพเจ้า <span class="dotted-line" style="min-width: 6cm; text-align: center; font-weight: 600;"><?= htmlspecialchars($booking['requester_name']) ?></span> 
-                ตำแหน่ง <span class="dotted-line" style="min-width: 5cm; text-align: center;"><?= htmlspecialchars($booking['creator_title'] ?: '-') ?></span>
-                สังกัดส่วนงาน <span class="dotted-line" style="min-width: 7cm; text-align: center;"><?= htmlspecialchars(($booking['creator_dept'] ?: '-') . ' / ' . ($booking['creator_div'] ?: '-')) ?></span>
-                มีความประสงค์ขอใช้รถยนต์ส่วนกลางขององค์กร เพื่อเดินทางไปปฏิบัติหน้าที่ ณ 
-                <span class="dotted-line" style="min-width: 12cm; font-weight: 500;"><?= htmlspecialchars($booking['destination']) ?></span>
-            </p>
-
-            <p class="info-content" style="text-indent: 0;">
-                เพื่อวัตถุประสงค์ในการ <span class="dotted-line" style="min-width: 14.5cm;"><?= htmlspecialchars($booking['purpose']) ?></span>
-                มีผู้ร่วมเดินทางทั้งหมดจำนวน <span class="dotted-line" style="min-width: 1.5cm; text-align: center; font-weight: 600;"><?= htmlspecialchars($booking['passenger_count']) ?></span> คน
-                โดยกำหนดการเดินทางตั้งแต่วันที่ <span class="dotted-line" style="min-width: 6cm; text-align: center;"><?= formatThaiDateTime($booking['start_datetime']) ?></span>
-                ถึงวันที่ <span class="dotted-line" style="min-width: 6cm; text-align: center;"><?= formatThaiDateTime($booking['end_datetime']) ?></span>
-            </p>
-        </div>
-
-        <div style="margin-top: 30px;">
-            <h4 style="margin-bottom: 10px; border-bottom: 1px solid #000; padding-bottom: 5px;">สำหรับงานยานพาหนะและผลการพิจารณาจัดสรร</h4>
+        <div style="font-size: 15.5px; line-height: 2.1; text-align: justify;">
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ข้าพเจ้า <span class="dotted-fill-inline" style="min-width: 6.5cm;"><?= htmlspecialchars($booking['creator_fullname']) ?></span> 
+            ตำแหน่ง <span class="dotted-fill-inline" style="min-width: 5.5cm;"><?= htmlspecialchars($booking['creator_title'] ?: '-') ?></span> <br>
+            ส่วน <span class="dotted-fill-inline" style="min-width: 5.5cm;"><?= htmlspecialchars($booking['creator_dept_name'] ?: '-') ?></span> 
+            งาน <span class="dotted-fill-inline" style="min-width: 6.5cm;"><?= htmlspecialchars($booking['creator_div_name'] ?: '-') ?></span> 
+            ขออนุญาตใช้รถยนต์ไปติดต่อราชการที่ <span class="dotted-fill-inline" style="min-width: 12.8cm; text-align: left; text-indent: 6px;"><?= htmlspecialchars($booking['destination']) ?></span> <br>
+            เรื่อง <span class="dotted-fill-inline" style="min-width: 16.5cm; text-align: left; text-indent: 6px;"><?= htmlspecialchars($booking['subject'] ?: '-') ?></span> <br>
             
-            <?php if ($booking['status'] === 'pending_admin'): ?>
-                <div class="text-center" style="padding: 20px; border: 1px dashed #777; border-radius: 8px; margin: 15px 0;">
-                    <div class="status-stamp status-pending">⏳ อยู่ระหว่างรอการอนุมัติและจัดสรรจากเจ้าหน้าที่</div>
-                    <p style="margin-top: 10px; font-size: 14px; color: #666;">ข้อมูลคนขับและยานพาหนะจะแสดงที่นี่หลังจากผู้ดูแลอนุมัติคำขอแล้ว</p>
-                </div>
-            <?php else: ?>
-                <table class="table-allocation">
-                    <tr>
-                        <td width="30%"><strong>ประเภทรถที่จัดสรร</strong></td>
-                        <td width="70%"><?= $booking['vehicle_type'] === 'sedan' ? 'รถเก๋ง' : ($booking['vehicle_type'] === 'van' ? 'รถตู้' : 'รถกระบะ') ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>ยี่ห้อ / รุ่นรถยนต์</strong></td>
-                        <td><?= htmlspecialchars($booking['brand_model'] ?: '-') ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>ทะเบียนรถยนต์</strong></td>
-                        <td><strong><?= htmlspecialchars($booking['license_plate'] ?: '-') ?></strong> <?= htmlspecialchars($booking['province'] ?: '') ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>พนักงานขับรถ</strong></td>
-                        <td><strong><?= htmlspecialchars($booking['driver_name'] ?: '-') ?></strong> (เบอร์โทรศัพท์: <?= htmlspecialchars($booking['driver_phone'] ?: '-') ?>)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>เลขไมล์เริ่มต้น</strong></td>
-                        <td><?= $booking['start_mileage'] !== null ? number_format($booking['start_mileage']) . ' กม.' : 'ยังไม่บันทึกเลขไมล์เริ่มต้น' ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong>เลขไมล์สิ้นสุด</strong></td>
-                        <td><?= $booking['end_mileage'] !== null ? number_format($booking['end_mileage']) . ' กม.' : 'ยังไม่สิ้นสุดการเดินทาง' ?></td>
-                    </tr>
-                </table>
-                
-                <div class="text-right" style="margin-bottom: 20px;">
-                    <strong>สถานะคำขอ: </strong> 
-                    <?php if ($booking['status'] === 'approved'): ?>
-                        <span class="status-stamp status-approved">✓ อนุมัติการขอใช้รถแล้ว</span>
-                    <?php elseif ($booking['status'] === 'completed'): ?>
-                        <span class="status-stamp status-completed">✓ เสร็จสิ้นการเดินทาง (ปิดทริป)</span>
-                    <?php elseif ($booking['status'] === 'cancelled'): ?>
-                        <span class="status-stamp status-cancelled">✗ ไม่อนุมัติ / ยกเลิกคำขอ</span>
+            <div style="margin-left: 20px; display: flex; flex-direction: column; gap: 4px; margin-top: 6px; margin-bottom: 6px;">
+                <div>
+                    <?php if ($is_daily): ?>
+                        ( &nbsp;&#10003;&nbsp; ) ประจำวัน <span class="dotted-fill-inline" style="min-width: 2.2cm;"><?= $start_parts['day_name'] ?></span> ที่ <span class="dotted-fill-inline" style="min-width: 1cm;"><?= $start_parts['day'] ?></span> เดือน <span class="dotted-fill-inline" style="min-width: 3.2cm;"><?= $start_parts['month'] ?></span> พ.ศ. <span class="dotted-fill-inline" style="min-width: 1.6cm;"><?= $start_parts['year'] ?></span> เวลา <span class="dotted-fill-inline" style="min-width: 1.8cm;"><?= $start_parts['time'] ?></span> น.
+                    <?php else: ?>
+                        ( &nbsp;&nbsp; ) ประจำวัน .................................... ที่ ............ เดือน .................................... พ.ศ. .................... เวลา .................... น.
                     <?php endif; ?>
                 </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- Signature boxes -->
-        <div class="signature-section">
-            <div class="sig-box">
-                <p>ลงชื่อ...................................................... ผู้ขอใช้รถ</p>
-                <p style="margin-top: 10px;">( <span style="font-weight: 500;"><?= htmlspecialchars($booking['requester_name']) ?></span> )</p>
-                <p style="font-size: 14px; color: #555;">ตำแหน่ง: <?= htmlspecialchars($booking['creator_title'] ?: '-') ?></p>
+                <div>
+                    <?php if ($is_province): ?>
+                        ( &nbsp;&#10003;&nbsp; ) ต่างจังหวัดในวัน <span class="dotted-fill-inline" style="min-width: 2.2cm;"><?= $start_parts['day_name'] ?></span> ที่ <span class="dotted-fill-inline" style="min-width: 1cm;"><?= $start_parts['day'] ?></span> เดือน <span class="dotted-fill-inline" style="min-width: 3.2cm;"><?= $start_parts['month'] ?></span> พ.ศ. <span class="dotted-fill-inline" style="min-width: 1.6cm;"><?= $start_parts['year'] ?></span> เวลา <span class="dotted-fill-inline" style="min-width: 1.8cm;"><?= $start_parts['time'] ?></span> น.
+                    <?php else: ?>
+                        ( &nbsp;&nbsp; ) ต่างจังหวัดในวัน ............................ ที่ ............ เดือน .................................... พ.ศ. .................... เวลา .................... น.
+                    <?php endif; ?>
+                </div>
+                <div>
+                    ( &nbsp;&#10003;&nbsp; ) กลับถึงศูนย์วัน <span class="dotted-fill-inline" style="min-width: 2.2cm;"><?= $end_parts['day_name'] ?></span> ที่ <span class="dotted-fill-inline" style="min-width: 1cm;"><?= $end_parts['day'] ?></span> เดือน <span class="dotted-fill-inline" style="min-width: 3.2cm;"><?= $end_parts['month'] ?></span> พ.ศ. <span class="dotted-fill-inline" style="min-width: 1.6cm;"><?= $end_parts['year'] ?></span> เวลา <span class="dotted-fill-inline" style="min-width: 1.8cm;"><?= $end_parts['time'] ?></span> น.
+                </div>
             </div>
             
-            <div class="sig-box">
-                <p>ลงชื่อ...................................................... ผู้จัดสรรงาน</p>
-                <p style="margin-top: 10px;">( สมศักดิ์ รักงานดี )</p>
-                <p style="font-size: 14px; color: #555;">ตำแหน่ง: หัวหน้างานยานพาหนะ</p>
-            </div>
+            โดยมี <span class="dotted-fill-inline" style="min-width: 6.5cm;"><?= htmlspecialchars($booking['controller_fullname'] ?: '-') ?></span> เป็นผู้ควบคุมรถ และมีบุคคลร่วมคณะดังนี้ <br>
+            <span class="dotted-fill-inline" style="width: 100%; text-align: left; text-indent: 8px; min-height: 25px; line-height: 1.6;"><?= htmlspecialchars($passenger_str) ?></span> <br>
+            ในกรณีที่ไม่มีผู้ควบคุมรถ เห็นควรให้ <span class="dotted-fill-inline" style="min-width: 6.5cm;"><?= htmlspecialchars($booking['backup_controller_fullname'] ?: '-') ?></span> เป็นผู้ควบคุมรถ
+        </div>
 
-            <div class="sig-box" style="grid-column: span 2; margin-top: 30px;">
-                <p>ลงชื่อ...................................................... ผู้อนุมัติคำขอใช้รถ</p>
-                <p style="margin-top: 10px;">( ดร.วิชัย ใจดี )</p>
-                <p style="font-size: 14px; color: #555;">ตำแหน่ง: ผู้อำนวยการส่วนบริหารงานกลาง</p>
+        <!-- Middle Approval and Allocation Section -->
+        <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 15px; margin-top: 15px; font-size: 15px; page-break-inside: avoid;">
+            <!-- Left Side: Vehicle Dept Opinion -->
+            <div style="border: 1px solid #000; padding: 12px; border-radius: 4px; display: flex; flex-direction: column; gap: 8px; line-height: 1.7;">
+                <div style="font-weight: bold; text-decoration: underline;">ความเห็นงานยานพาหนะ</div>
+                <div>
+                    จัดรถยนต์หมายเลขทะเบียน <span class="dotted-fill-inline" style="min-width: 3.5cm;"><?= htmlspecialchars($booking['license_plate'] ?: '................................') ?></span>
+                </div>
+                <div>
+                    โดยมี <span class="dotted-fill-inline" style="min-width: 4.5cm;"><?= htmlspecialchars($booking['driver_name'] ?: '........................................') ?></span> เป็นพนักงานขับรถ
+                </div>
+                <div style="margin-top: 5px; display: flex; justify-content: space-between; align-items: flex-end;">
+                    <span>ลงชื่อ......................................................</span>
+                    <span style="font-size: 11.5px; font-weight: bold;">(งานยานพาหนะ)</span>
+                </div>
+                <div style="margin-top: 3px; text-align: left;">
+                    ลงชื่อ...................................................... หัวหน้างานยานพาหนะ
+                </div>
+            </div>
+            
+            <!-- Right Side: Requester & Director Signatures -->
+            <div style="display: flex; flex-direction: column; justify-content: space-between; padding-left: 5px;">
+                <div style="text-align: center; margin-top: 5px; margin-bottom: 15px;">
+                    <p>ลงชื่อ...................................................... ผู้ขออนุญาต</p>
+                    <p style="margin-top: 2px;">( <span style="font-weight: 600;"><?= htmlspecialchars($booking['creator_fullname']) ?></span> )</p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 10px;">
+                    <p>ลงชื่อ...................................................... ผู้อนุมัติ</p>
+                    <p style="margin-top: 2px;">( นายพงศ์สวัสดิ์ จ้างจิตต์ )</p>
+                    <p style="font-size: 12.5px; font-weight: bold; margin: 0;">ผู้อำนวยการศูนย์วิทยาศาสตร์เพื่อการศึกษารังสิต</p>
+                </div>
             </div>
         </div>
 
-        <div class="text-center" style="margin-top: 50px; font-size: 12px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px;">
-            พิมพ์โดยระบบสารสนเทศ FleetFlow เมื่อ: <?= formatThaiDateTime(date('Y-m-d H:i:s')) ?>
+        <!-- Bottom Log Box (ผู้ควบคุมรถ/พนักงานขับรถ/รปภ.) -->
+        <div style="border: 2px solid #000; padding: 12px; margin-top: 15px; font-size: 13.5px; line-height: 1.9; page-break-inside: avoid; border-radius: 4px;">
+            <div style="font-weight: bold; border-bottom: 1.5px solid #000; padding-bottom: 3px; margin-bottom: 8px; font-size: 14.5px;">
+                ผู้ควบคุมรถ/พนักงานขับรถ/รปภ.
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>ออกจากศูนย์ฯ เวลา........................น.</span>
+                <span>สภาพรถ ( &nbsp; ) ปกติ &nbsp;&nbsp; ( &nbsp; ) ไม่ปกติ เพราะ................................................................</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                <span>เลขไมล์ออกจากศูนย์ฯ........................</span>
+                <span>ลงชื่อ...............................................................................................พนักงานขับรถ</span>
+            </div>
+            <hr style="border: none; border-top: 1px dashed #000; margin: 6px 0;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>กลับถึงศูนย์ฯ เวลา........................น.</span>
+                <span>สภาพรถ ( &nbsp; ) ปกติ &nbsp;&nbsp; ( &nbsp; ) ไม่ปกติ เพราะ................................................................</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                <span>เลขไมล์เข้าจอดศูนย์ฯ........................</span>
+                <span>ลงชื่อ...............................................................................................พนักงานขับรถ</span>
+            </div>
+            <div style="margin-top: 6px;">
+                กลับถึงศูนย์ฯ ไม่ตรงเวลา เนื่องจาก.....................................................................................................................................
+            </div>
+            <div style="margin-top: 2px; text-align: right; font-style: italic; font-size: 11.5px; font-weight: bold; color: #333;">
+                (ผู้ควบคุมรถลงรายละเอียด)
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 10px; text-align: center; font-weight: 500;">
+                <div>
+                    ลงชื่อ...................................................... เจ้าหน้าที่ รปภ.
+                </div>
+                <div>
+                    ลงชื่อ...................................................... ผู้ควบคุมรถ
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center" style="margin-top: 15px; font-size: 11px; color: #555; border-top: 1px dashed #bbb; padding-top: 6px;">
+            พิมพ์โดยระบบสารสนเทศ FleetFlow เมื่อ: <?= formatThaiDateTime(date('Y-m-d H:i:s')) ?> &nbsp;&nbsp;|&nbsp;&nbsp; รหัสจองอ้างอิง: FF-<?= str_pad($booking['id'], 5, '0', STR_PAD_LEFT) ?>
         </div>
     </div>
 
     <script>
-        // Auto print on load
+        // Auto open print dialog on page load
         window.onload = function() {
-            // Uncomment if you want to auto open print dialog:
             // window.print();
         };
     </script>

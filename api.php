@@ -783,7 +783,7 @@ switch ($action) {
             $bookings = $pdo->query("
                 SELECT b.*, 
                        d.name as driver_name, d.phone as driver_phone,
-                       v.license_plate, v.province, v.brand_model, v.type as vehicle_type,
+                       v.license_plate, v.province, v.brand_model, v.type as vehicle_type, v.current_mileage as vehicle_current_mileage,
                        u.fullname as creator_fullname
               FROM bookings b
               LEFT JOIN drivers d ON b.driver_id = d.id

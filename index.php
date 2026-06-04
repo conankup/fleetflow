@@ -7,7 +7,7 @@
     
     <!-- Google Fonts & FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=<?= filemtime('styles.css') ?>">
 </head>
 <body>
 
@@ -151,6 +151,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js"></script>
+    <script src="app.js?v=<?= filemtime('app.js') ?>"></script>
 </body>
 </html>

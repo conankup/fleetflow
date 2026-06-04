@@ -367,7 +367,7 @@ function formatThaiDateOnly($date_str) {
     <script>
         // Auto open print dialog on page load
         window.onload = function() {
-            // window.print();
+            window.print();
         };
     </script>
 </body>
